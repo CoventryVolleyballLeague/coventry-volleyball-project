@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coventry Chase Volleyball League</title>
+<title>Coventry Volleyball League — Login</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Playpen+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,6 @@
     --gold: #e0a83e;
     --cream: #faf7f1;
     --text: #2b2b2b;
-    --muted: #6b7280;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,330 +21,90 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     color: var(--text);
     background: var(--cream);
-    line-height: 1.6;
-  }
-
-  header {
-    background: var(--navy);
-    color: white;
-    padding: 1.5rem 1.5rem;
-    text-align: center;
-  }
-
-  header .brand {
-    display: inline-flex;
-    align-items: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    font-family: "Pacifico", cursive;
-    font-weight: 400;
-    font-size: clamp(2.5rem, 5vw, 4.35rem);
-    letter-spacing: 0.02em;
-    line-height: 1.05;
-  }
-
-  header .brand .league {
-    color: var(--gold);
-  }
-
-  header .tagline {
-    align-self: flex-end;
-    margin-bottom: 0.35rem;
-    color: #f5d58c;
-    font-family: "Playpen Sans", cursive;
-    font-size: clamp(0.78rem, 1.6vw, 1.05rem);
-    font-style: italic;
-    font-weight: 600;
-    letter-spacing: 0;
-    white-space: nowrap;
-  }
-
-  .layout {
-    display: flex;
-    min-height: calc(100vh - 112px);
-  }
-
-  .sidebar {
-    width: 200px;
-    flex-shrink: 0;
-    background: white;
-    border-right: 1px solid #e5e0d5;
-    padding: 2rem 0;
-  }
-
-  .sidebar a {
-    display: block;
-    padding: 0.85rem 1.5rem;
-    color: var(--navy);
-    text-decoration: none;
-    font-size: 0.95rem;
-    font-weight: 500;
-    border-left: 3px solid transparent;
-  }
-
-  .sidebar a:hover,
-  .sidebar a.active {
-    background: var(--cream);
-    border-left: 3px solid var(--gold);
-  }
-
-  .main {
-    flex: 1;
-    padding: 2.5rem 2rem;
-  }
-
-  .main h1 {
-    color: var(--navy);
-    font-size: 2.4rem;
-    margin-bottom: 1.5rem;
-    text-align: left;
-  }
-
-  .main h1.welcome-title {
-    font-family: "Playpen Sans", cursive;
-    font-style: italic;
-    font-weight: 700;
-  }
-
-  .page-section {
-    display: none;
-  }
-
-  .page-section.active {
-    display: block;
-  }
-
-  .dashboard {
-    border: 1px dashed #cfc7b4;
-    border-radius: 8px;
-    min-height: 400px;
+    min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--muted);
-    font-size: 0.95rem;
+    padding: 2rem 1.5rem;
   }
 
-  .team-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(180px, 1fr));
-    gap: 1rem;
+  .login-card {
+    text-align: center;
+    max-width: 640px;
   }
 
-  .team-card {
-    background: white;
-    border: 1px solid #e5e0d5;
-    border-top: 4px solid var(--gold);
-    border-radius: 8px;
-    padding: 1.1rem;
-    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
-  }
-
-  .team-card h2 {
-    color: var(--navy);
-    font-size: 1.15rem;
-    line-height: 1.2;
-    margin-bottom: 0.85rem;
-  }
-
-  .team-card ul {
-    list-style: none;
-  }
-
-  .team-card li {
-    padding: 0.28rem 0;
-    border-bottom: 1px solid #f0ebe1;
-    font-size: 0.95rem;
-  }
-
-  .team-card li:last-child {
-    border-bottom: 0;
-  }
-
-  .team-card .captain {
-    color: var(--navy);
+  .login-card h1 {
+    font-family: "Playpen Sans", cursive;
+    font-style: italic;
     font-weight: 700;
+    font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+    line-height: 1.3;
+    color: var(--navy);
   }
 
-  @media (max-width: 980px) {
-    .team-grid {
-      grid-template-columns: repeat(2, minmax(180px, 1fr));
-    }
+  .login-card h1 .tagline {
+    display: block;
+    margin-top: 0.5rem;
+    color: var(--gold);
+    font-size: clamp(0.9rem, 2vw, 1.15rem);
+    font-weight: 600;
   }
 
-  @media (max-width: 680px) {
-    header .brand {
-      align-items: center;
-      gap: 0.35rem;
-    }
+  .buttons {
+    margin-top: 2.5rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 
-    header .tagline {
-      width: 100%;
-      margin-bottom: 0;
-      text-align: right;
-      white-space: normal;
-    }
+  .buttons button {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.85rem 1.75rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    transition: transform 0.15s ease;
+  }
 
-    .layout {
-      display: block;
-    }
+  .buttons button:hover {
+    transform: translateY(-2px);
+  }
 
-    .sidebar {
-      width: 100%;
-      padding: 0.5rem 0;
-      border-right: 0;
-      border-bottom: 1px solid #e5e0d5;
-    }
+  .btn-guest {
+    background: var(--navy);
+    color: white;
+  }
 
-    .main {
-      padding: 2rem 1.25rem;
-    }
-
-    .team-grid {
-      grid-template-columns: 1fr;
-    }
+  .btn-admin {
+    background: transparent;
+    color: var(--navy);
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    Coventry Chase <span class="league">Volleyball League</span>
-    <span class="tagline">...where community meets competition</span>
-  </div>
-</header>
+<div class="login-card">
+  <h1>Welcome to Coventry Volleyball League<span class="tagline">... where community meets competition</span></h1>
 
-<div class="layout">
-  <div class="sidebar">
-    <a class="nav-link active" href="#about" data-section="about">About Us</a>
-    <a class="nav-link" href="#leagues" data-section="leagues">Leagues</a>
-    <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
-    <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
-    <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
-  </div>
-
-  <div class="main">
-    <section class="page-section active" id="about">
-      <h1 class="welcome-title">Welcome</h1>
-      <div class="dashboard">
-        Dashboard content coming soon
-      </div>
-    </section>
-
-    <section class="page-section" id="leagues">
-      <h1>Leagues</h1>
-      <div class="dashboard">
-        League details coming soon
-      </div>
-    </section>
-
-    <section class="page-section" id="teams">
-      <h1>Teams and Players</h1>
-      <div class="team-grid">
-        <article class="team-card">
-          <h2>Invincibles</h2>
-          <ul>
-            <li class="captain">Sammal (C)</li>
-            <li>Ultaf</li>
-            <li>Roshan</li>
-            <li>Bharat</li>
-            <li>Ashish</li>
-            <li>Sidhu</li>
-            <li>Raghu</li>
-            <li>Prasanth</li>
-            <li>Sravan</li>
-          </ul>
-        </article>
-
-        <article class="team-card">
-          <h2>Coventry Chasers</h2>
-          <ul>
-            <li class="captain">Sandeep (C)</li>
-            <li>Venky</li>
-            <li>Pavan</li>
-            <li>Sandman</li>
-            <li>Saran</li>
-            <li>Shashank</li>
-            <li>Aditya</li>
-            <li>Sai Supraj</li>
-          </ul>
-        </article>
-
-        <article class="team-card">
-          <h2>Coventry Sixers</h2>
-          <ul>
-            <li class="captain">Ramakrishna (C)</li>
-            <li>Ramki</li>
-            <li>Mani</li>
-            <li>Girish</li>
-            <li>Vamsi</li>
-            <li>Bheema</li>
-            <li>Satya</li>
-            <li>Srini</li>
-          </ul>
-        </article>
-
-        <article class="team-card">
-          <h2>Crossfires</h2>
-          <ul>
-            <li class="captain">Murali (C)</li>
-            <li>Abhiii</li>
-            <li>KC NJ</li>
-            <li>Karthik</li>
-            <li>Susanth</li>
-            <li>Ravi kiran</li>
-            <li>Ravi kanth</li>
-            <li>Abishank</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="page-section" id="schedule">
-      <h1>Schedule</h1>
-      <div class="dashboard">
-        Schedule content coming soon
-      </div>
-    </section>
-
-    <section class="page-section" id="feedback">
-      <h1>Feedback</h1>
-      <div class="dashboard">
-        Feedback content coming soon
-      </div>
-    </section>
+  <div class="buttons">
+    <button class="btn-guest" id="guestBtn">Continue as guest</button>
+    <button class="btn-admin" id="adminBtn">Continue as Admin</button>
   </div>
 </div>
 
 <script>
-  const navLinks = document.querySelectorAll(".nav-link");
-  const sections = document.querySelectorAll(".page-section");
-
-  function showSection(sectionId) {
-    sections.forEach((section) => {
-      section.classList.toggle("active", section.id === sectionId);
-    });
-
-    navLinks.forEach((link) => {
-      link.classList.toggle("active", link.dataset.section === sectionId);
-    });
-  }
-
-  navLinks.forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      const sectionId = link.dataset.section;
-      showSection(sectionId);
-      history.replaceState(null, "", `#${sectionId}`);
-    });
+  document.getElementById("guestBtn").addEventListener("click", () => {
+    sessionStorage.setItem("role", "guest");
+    location.href = "dashboard.html";
   });
 
-  const initialSection = location.hash.replace("#", "") || "about";
-  if (document.getElementById(initialSection)) {
-    showSection(initialSection);
-  }
+  document.getElementById("adminBtn").addEventListener("click", () => {
+    sessionStorage.setItem("role", "admin");
+    location.href = "dashboard.html";
+  });
 </script>
 
 </body>
