@@ -94,6 +94,22 @@
     display: none;
   }
 
+  @keyframes blink-red {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.25; }
+  }
+
+  .sidebar a.live-tab {
+    color: #d32f2f;
+    font-weight: 700;
+    animation: blink-red 1s steps(1, start) infinite;
+  }
+
+  .sidebar a.live-tab:hover,
+  .sidebar a.live-tab.active {
+    color: #d32f2f;
+  }
+
   body.role-admin .sidebar .admin-only {
     display: block;
   }
@@ -436,11 +452,13 @@
 
   .set-scores {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.9rem;
   }
 
   .set-card {
+    flex: 1 1 220px;
     border: 1px solid #e5e0d5;
     border-radius: 8px;
     padding: 0.9rem 1.1rem;
@@ -623,12 +641,12 @@
 
 <div class="layout">
   <div class="sidebar">
-    <a class="nav-link active" href="#about" data-section="about">About Us</a>
+    <a class="nav-link active live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
     <a class="nav-link" href="#leagues" data-section="leagues">Leagues</a>
     <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
-    <a class="nav-link" href="#live-scores" data-section="live-scores">Current Match Live Scores</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
+    <a class="nav-link" href="#about" data-section="about">About Us</a>
     <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
     <a class="nav-link admin-only" href="#settings" data-section="settings">Settings</a>
     <div class="switch-role">
@@ -637,7 +655,7 @@
   </div>
 
   <div class="main">
-    <section class="page-section active" id="about">
+    <section class="page-section" id="about">
       <h1 class="welcome-title">Welcome</h1>
       <div class="about-content">
         <p class="about-text">
@@ -848,11 +866,28 @@
       </div>
     </section>
 
-    <section class="page-section" id="live-scores">
+    <section class="page-section active" id="live-scores">
       <h1>Current Match Live Scores</h1>
-      <div class="scoreboard-card" style="max-width: 480px;">
+      <div class="scoreboard-card">
         <div class="match-winner-banner" id="matchWinnerGuest">Match Winner: TBD</div>
         <div class="set-scores" id="setScoresGuest"></div>
+      </div>
+
+      <h2 class="section-heading">Rally Log</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rally No.</th>
+              <th>Winning Team</th>
+              <th>Player</th>
+              <th>Point Type</th>
+              <th>Score</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="rallyLogBodyGuest"></tbody>
+        </table>
       </div>
     </section>
 
@@ -975,7 +1010,7 @@
   });
 
   const adminOnlySections = ["settings", "score-updates"];
-  const initialSection = location.hash.replace("#", "") || "about";
+  const initialSection = location.hash.replace("#", "") || "live-scores";
   if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
   }
@@ -1072,8 +1107,7 @@
     });
   }
 
-  function renderRallyLog(state) {
-    const tbody = document.getElementById("rallyLogBody");
+  function renderRallyLogInto(tbody, state) {
     if (!tbody) return;
     tbody.innerHTML = "";
     state.log.slice().reverse().forEach((entry) => {
@@ -1087,6 +1121,11 @@
         '<td>' + (entry.notes || "&mdash;") + '</td>';
       tbody.appendChild(tr);
     });
+  }
+
+  function renderRallyLog(state) {
+    renderRallyLogInto(document.getElementById("rallyLogBody"), state);
+    renderRallyLogInto(document.getElementById("rallyLogBodyGuest"), state);
   }
 
   function renderAll() {
