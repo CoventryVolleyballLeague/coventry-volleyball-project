@@ -209,6 +209,42 @@
     }
   }
 
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 43, 74, 0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 200;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-box {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+
+  .modal-title {
+    color: var(--navy);
+    font-size: 1.4rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
   .page-section {
     display: none;
   }
@@ -573,6 +609,11 @@
     font-weight: 700;
   }
 
+  .team-card .empty-note {
+    color: var(--muted);
+    font-style: italic;
+  }
+
   @media (max-width: 980px) {
     .team-grid {
       grid-template-columns: repeat(2, minmax(180px, 1fr));
@@ -892,7 +933,7 @@
       <div class="team-grid">
         <article class="team-card">
           <h2>Invincibles</h2>
-          <ul>
+          <ul data-team="Invincibles">
             <li class="captain">Sammal (C)</li>
             <li>Ultaf</li>
             <li>Roshan</li>
@@ -907,7 +948,7 @@
 
         <article class="team-card">
           <h2>Coventry Chasers</h2>
-          <ul>
+          <ul data-team="Coventry Chasers">
             <li class="captain">Sandeep (C)</li>
             <li>Venky</li>
             <li>Pavan</li>
@@ -921,7 +962,7 @@
 
         <article class="team-card">
           <h2>Coventry Sixers</h2>
-          <ul>
+          <ul data-team="Coventry Sixers">
             <li class="captain">Ramakrishna (C)</li>
             <li>Ramki</li>
             <li>Mani</li>
@@ -935,7 +976,7 @@
 
         <article class="team-card">
           <h2>Crossfires</h2>
-          <ul>
+          <ul data-team="Crossfires">
             <li class="captain">Murali (C)</li>
             <li>Abhiii</li>
             <li>KC NJ</li>
@@ -944,6 +985,13 @@
             <li>Ravi kiran</li>
             <li>Ravi kanth</li>
             <li>Abishank</li>
+          </ul>
+        </article>
+
+        <article class="team-card">
+          <h2>Unassigned Players</h2>
+          <ul data-team="Not Yet Decided">
+            <li class="empty-note">No unassigned players yet</li>
           </ul>
         </article>
       </div>
@@ -973,6 +1021,34 @@
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
     </section>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addPlayerModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Add Player</h2>
+
+    <div class="field">
+      <label for="newPlayerName">Player Name</label>
+      <input type="text" id="newPlayerName" placeholder="e.g. Sammal">
+    </div>
+
+    <div class="field">
+      <label for="newPlayerTeam">Select Team Name</label>
+      <select id="newPlayerTeam">
+        <option value="">Choose a team&hellip;</option>
+        <option>Invincibles</option>
+        <option>Coventry Chasers</option>
+        <option>Coventry Sixers</option>
+        <option>Crossfires</option>
+        <option value="Not Yet Decided">Not Yet Decided</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="savePlayerBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelPlayerBtn">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1034,8 +1110,77 @@
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       photoModal.classList.remove("open");
+      closeAddPlayerModal();
     }
   });
+
+  const ADDED_PLAYERS_KEY = "addedPlayers";
+  const addPlayerModal = document.getElementById("addPlayerModal");
+  const newPlayerName = document.getElementById("newPlayerName");
+  const newPlayerTeam = document.getElementById("newPlayerTeam");
+
+  function closeAddPlayerModal() {
+    addPlayerModal.classList.remove("open");
+    newPlayerName.value = "";
+    newPlayerTeam.value = "";
+  }
+
+  function renderAddedPlayers() {
+    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
+    const players = raw ? JSON.parse(raw) : [];
+
+    document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
+      ul.querySelectorAll("li.added-player").forEach((li) => li.remove());
+    });
+
+    players.forEach((p) => {
+      const ul = document.querySelector('.team-card ul[data-team="' + p.team + '"]');
+      if (!ul) return;
+      const li = document.createElement("li");
+      li.className = "added-player";
+      li.textContent = p.name;
+      ul.appendChild(li);
+    });
+
+    const unassignedUl = document.querySelector('.team-card ul[data-team="Not Yet Decided"]');
+    if (unassignedUl) {
+      const emptyNote = unassignedUl.querySelector(".empty-note");
+      const hasPlayers = unassignedUl.querySelectorAll("li.added-player").length > 0;
+      if (emptyNote) emptyNote.style.display = hasPlayers ? "none" : "list-item";
+    }
+  }
+
+  const addPlayerBtn = document.getElementById("addPlayerBtn");
+  if (addPlayerBtn) {
+    addPlayerBtn.addEventListener("click", () => {
+      addPlayerModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelPlayerBtn").addEventListener("click", closeAddPlayerModal);
+
+  addPlayerModal.addEventListener("click", (event) => {
+    if (event.target === addPlayerModal) closeAddPlayerModal();
+  });
+
+  document.getElementById("savePlayerBtn").addEventListener("click", () => {
+    const name = newPlayerName.value.trim();
+    const team = newPlayerTeam.value;
+
+    if (!name || !team) {
+      return;
+    }
+
+    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
+    const players = raw ? JSON.parse(raw) : [];
+    players.push({ name, team });
+    localStorage.setItem(ADDED_PLAYERS_KEY, JSON.stringify(players));
+
+    renderAddedPlayers();
+    closeAddPlayerModal();
+  });
+
+  renderAddedPlayers();
 
   const RALLY_KEY = "rallyTrackerState";
 
