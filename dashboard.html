@@ -245,6 +245,15 @@
     margin-top: 0.5rem;
   }
 
+  .current-team-display {
+    padding: 0.6rem 0.8rem;
+    border: 2px solid #d8d0bf;
+    border-radius: 8px;
+    background: var(--cream);
+    color: var(--navy);
+    font-weight: 600;
+  }
+
   .page-section {
     display: none;
   }
@@ -1016,6 +1025,7 @@
       <p class="section-note">Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).</p>
       <div class="settings-actions">
         <button class="settings-action-btn" id="addPlayerBtn">Add Player</button>
+        <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
         <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
@@ -1048,6 +1058,40 @@
     <div class="modal-actions">
       <button class="btn-save-rally" id="savePlayerBtn">Save</button>
       <button class="btn-clear-rally" id="cancelPlayerBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tradePlayerModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Trade Player</h2>
+
+    <div class="field">
+      <label for="tradePlayerSelect">Player Name</label>
+      <select id="tradePlayerSelect">
+        <option value="">Choose a player&hellip;</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Current Team</label>
+      <div class="current-team-display" id="tradeCurrentTeam">&mdash;</div>
+    </div>
+
+    <div class="field">
+      <label for="tradeNewTeamSelect">Select New Team</label>
+      <select id="tradeNewTeamSelect">
+        <option value="">Choose a team&hellip;</option>
+        <option>Invincibles</option>
+        <option>Coventry Chasers</option>
+        <option>Coventry Sixers</option>
+        <option>Crossfires</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveTradeBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelTradeBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -1111,10 +1155,79 @@
     if (event.key === "Escape") {
       photoModal.classList.remove("open");
       closeAddPlayerModal();
+      closeTradePlayerModal();
     }
   });
 
   const ADDED_PLAYERS_KEY = "addedPlayers";
+  const TEAM_OVERRIDES_KEY = "teamOverrides";
+
+  // Capture the original hardcoded roster once, before any dynamic rendering touches the DOM.
+  const basePlayers = [];
+  document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
+    ul.querySelectorAll("li").forEach((li) => {
+      if (li.classList.contains("empty-note")) return;
+      basePlayers.push({
+        name: li.textContent,
+        team: ul.dataset.team,
+        isCaptain: li.classList.contains("captain")
+      });
+    });
+  });
+
+  function getAddedPlayers() {
+    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function getTeamOverrides() {
+    const raw = localStorage.getItem(TEAM_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function getEffectivePlayers() {
+    const overrides = getTeamOverrides();
+    const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team, isCaptain: false }));
+    return basePlayers.concat(added).map((p) => ({
+      name: p.name,
+      isCaptain: p.isCaptain,
+      team: overrides[p.name] || p.team
+    }));
+  }
+
+  function renderRosters() {
+    const players = getEffectivePlayers();
+
+    document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
+      ul.innerHTML = "";
+    });
+
+    const grouped = {};
+    players.forEach((p) => {
+      if (!grouped[p.team]) grouped[p.team] = [];
+      grouped[p.team].push(p);
+    });
+
+    Object.keys(grouped).forEach((team) => {
+      const ul = document.querySelector('.team-card ul[data-team="' + team + '"]');
+      if (!ul) return;
+      grouped[team].forEach((p) => {
+        const li = document.createElement("li");
+        if (p.isCaptain) li.classList.add("captain");
+        li.textContent = p.name;
+        ul.appendChild(li);
+      });
+    });
+
+    const unassignedUl = document.querySelector('.team-card ul[data-team="Not Yet Decided"]');
+    if (unassignedUl && !unassignedUl.children.length) {
+      const li = document.createElement("li");
+      li.className = "empty-note";
+      li.textContent = "No unassigned players yet";
+      unassignedUl.appendChild(li);
+    }
+  }
+
   const addPlayerModal = document.getElementById("addPlayerModal");
   const newPlayerName = document.getElementById("newPlayerName");
   const newPlayerTeam = document.getElementById("newPlayerTeam");
@@ -1123,31 +1236,6 @@
     addPlayerModal.classList.remove("open");
     newPlayerName.value = "";
     newPlayerTeam.value = "";
-  }
-
-  function renderAddedPlayers() {
-    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
-    const players = raw ? JSON.parse(raw) : [];
-
-    document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
-      ul.querySelectorAll("li.added-player").forEach((li) => li.remove());
-    });
-
-    players.forEach((p) => {
-      const ul = document.querySelector('.team-card ul[data-team="' + p.team + '"]');
-      if (!ul) return;
-      const li = document.createElement("li");
-      li.className = "added-player";
-      li.textContent = p.name;
-      ul.appendChild(li);
-    });
-
-    const unassignedUl = document.querySelector('.team-card ul[data-team="Not Yet Decided"]');
-    if (unassignedUl) {
-      const emptyNote = unassignedUl.querySelector(".empty-note");
-      const hasPlayers = unassignedUl.querySelectorAll("li.added-player").length > 0;
-      if (emptyNote) emptyNote.style.display = hasPlayers ? "none" : "list-item";
-    }
   }
 
   const addPlayerBtn = document.getElementById("addPlayerBtn");
@@ -1171,16 +1259,74 @@
       return;
     }
 
-    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
-    const players = raw ? JSON.parse(raw) : [];
+    const players = getAddedPlayers();
     players.push({ name, team });
     localStorage.setItem(ADDED_PLAYERS_KEY, JSON.stringify(players));
 
-    renderAddedPlayers();
+    renderRosters();
     closeAddPlayerModal();
   });
 
-  renderAddedPlayers();
+  const tradePlayerModal = document.getElementById("tradePlayerModal");
+  const tradePlayerSelect = document.getElementById("tradePlayerSelect");
+  const tradeCurrentTeam = document.getElementById("tradeCurrentTeam");
+  const tradeNewTeamSelect = document.getElementById("tradeNewTeamSelect");
+
+  function closeTradePlayerModal() {
+    tradePlayerModal.classList.remove("open");
+    tradePlayerSelect.value = "";
+    tradeCurrentTeam.textContent = "—";
+    tradeNewTeamSelect.value = "";
+  }
+
+  function populateTradePlayerOptions() {
+    const players = getEffectivePlayers().slice().sort((a, b) => a.name.localeCompare(b.name));
+    tradePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+    players.forEach((p) => {
+      const option = document.createElement("option");
+      option.value = p.name;
+      option.textContent = p.name;
+      option.dataset.team = p.team;
+      tradePlayerSelect.appendChild(option);
+    });
+  }
+
+  const tradePlayerBtn = document.getElementById("tradePlayerBtn");
+  if (tradePlayerBtn) {
+    tradePlayerBtn.addEventListener("click", () => {
+      populateTradePlayerOptions();
+      tradePlayerModal.classList.add("open");
+    });
+  }
+
+  tradePlayerSelect.addEventListener("change", () => {
+    const selected = tradePlayerSelect.selectedOptions[0];
+    tradeCurrentTeam.textContent = selected && selected.value ? selected.dataset.team : "—";
+  });
+
+  document.getElementById("cancelTradeBtn").addEventListener("click", closeTradePlayerModal);
+
+  tradePlayerModal.addEventListener("click", (event) => {
+    if (event.target === tradePlayerModal) closeTradePlayerModal();
+  });
+
+  document.getElementById("saveTradeBtn").addEventListener("click", () => {
+    const name = tradePlayerSelect.value;
+    const newTeam = tradeNewTeamSelect.value;
+
+    if (!name || !newTeam) {
+      return;
+    }
+
+    const overrides = getTeamOverrides();
+    overrides[name] = newTeam;
+    localStorage.setItem(TEAM_OVERRIDES_KEY, JSON.stringify(overrides));
+
+    renderRosters();
+    closeTradePlayerModal();
+  });
+
+  renderRosters();
 
   const RALLY_KEY = "rallyTrackerState";
 
