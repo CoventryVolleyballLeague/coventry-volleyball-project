@@ -272,6 +272,14 @@
     margin-top: 0.5rem;
   }
 
+  .modal-actions.stacked {
+    flex-direction: column;
+  }
+
+  .modal-actions.stacked button {
+    width: 100%;
+  }
+
   .current-team-display {
     padding: 0.6rem 0.8rem;
     border: 2px solid #d8d0bf;
@@ -486,7 +494,8 @@
   }
 
   .btn-save-rally,
-  .btn-clear-rally {
+  .btn-clear-rally,
+  .btn-remove-player {
     font-family: inherit;
     font-size: 0.9rem;
     font-weight: 600;
@@ -504,6 +513,12 @@
   .btn-clear-rally {
     background: transparent;
     color: var(--navy);
+  }
+
+  .btn-remove-player {
+    background: #b3261e;
+    color: white;
+    border-color: #b3261e;
   }
 
   .match-winner-banner {
@@ -1067,7 +1082,7 @@
       <h1>Settings</h1>
       <p class="section-note">Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).</p>
       <div class="settings-actions">
-        <button class="settings-action-btn" id="addPlayerBtn">Add Player</button>
+        <button class="settings-action-btn" id="addRemovePlayerBtn">Add/Remove Player</button>
         <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
         <button class="settings-action-btn" id="changeCaptainBtn">Change Team Captains</button>
         <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
@@ -1078,30 +1093,77 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="addPlayerModal">
+<div class="modal-overlay" id="addRemovePlayerModal">
   <div class="modal-box">
-    <h2 class="modal-title">Add Player</h2>
 
-    <div class="field">
-      <label for="newPlayerName">Player Name</label>
-      <input type="text" id="newPlayerName" placeholder="e.g. Sammal">
+    <div class="wizard-screen" id="arpChoiceScreen">
+      <h2 class="modal-title">Add/Remove Player</h2>
+      <div class="modal-actions stacked">
+        <button class="btn-save-rally" id="arpChooseAdd">Add Player</button>
+        <button class="btn-save-rally" id="arpChooseRemove">Remove Player</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-clear-rally" id="arpChoiceCancel" style="width: 100%;">Cancel</button>
+      </div>
     </div>
 
-    <div class="field">
-      <label for="newPlayerTeam">Select Team Name</label>
-      <select id="newPlayerTeam">
-        <option value="">Choose a team&hellip;</option>
-        <option>Invincibles</option>
-        <option>Coventry Chasers</option>
-        <option>Coventry Sixers</option>
-        <option>Crossfires</option>
-        <option value="Not Yet Decided">Not Yet Decided</option>
-      </select>
+    <div class="wizard-screen" id="arpAddScreen" style="display: none;">
+      <h2 class="modal-title">Add Player</h2>
+
+      <div class="field">
+        <label for="newPlayerName">Player Name</label>
+        <input type="text" id="newPlayerName" placeholder="e.g. Sammal">
+      </div>
+
+      <div class="field">
+        <label for="newPlayerTeam">Select Team Name</label>
+        <select id="newPlayerTeam">
+          <option value="">Choose a team&hellip;</option>
+          <option>Invincibles</option>
+          <option>Coventry Chasers</option>
+          <option>Coventry Sixers</option>
+          <option>Crossfires</option>
+          <option value="Not Yet Decided">Not Yet Decided</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="savePlayerBtn">Save</button>
+        <button class="btn-clear-rally" id="cancelPlayerBtn">Cancel</button>
+      </div>
     </div>
 
+    <div class="wizard-screen" id="arpRemoveScreen" style="display: none;">
+      <h2 class="modal-title">Remove Player</h2>
+
+      <div class="field">
+        <label for="removePlayerSelect">Player Name</label>
+        <select id="removePlayerSelect">
+          <option value="">Choose a player&hellip;</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Team</label>
+        <div class="current-team-display" id="removePlayerTeam">&mdash;</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-remove-player" id="removePlayerBtn">Remove</button>
+        <button class="btn-clear-rally" id="cancelRemoveBtn">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="removeConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Remove Player</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;">Do you really want to remove this player?</p>
     <div class="modal-actions">
-      <button class="btn-save-rally" id="savePlayerBtn">Save</button>
-      <button class="btn-clear-rally" id="cancelPlayerBtn">Cancel</button>
+      <button class="btn-remove-player" id="confirmRemoveYes">Yes</button>
+      <button class="btn-clear-rally" id="confirmRemoveNo">No</button>
     </div>
   </div>
 </div>
@@ -1243,6 +1305,7 @@
     if (event.key === "Escape") {
       photoModal.classList.remove("open");
       closeAddPlayerModal();
+      closeRemoveConfirmModal();
       closeTradePlayerModal();
       closeChangeCaptainModal();
     }
@@ -1251,6 +1314,7 @@
   const ADDED_PLAYERS_KEY = "addedPlayers";
   const TEAM_OVERRIDES_KEY = "teamOverrides";
   const TEAM_CAPTAINS_KEY = "teamCaptains";
+  const REMOVED_PLAYERS_KEY = "removedPlayers";
 
   // Capture the original hardcoded roster once, before any dynamic rendering touches the DOM.
   // Captain status is tracked separately from the name so captaincy can move between players.
@@ -1286,18 +1350,27 @@
     return Object.assign({}, defaultCaptains, getTeamCaptainOverrides());
   }
 
+  function getRemovedPlayers() {
+    const raw = localStorage.getItem(REMOVED_PLAYERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }
+
   function getEffectivePlayers() {
     const teamOverrides = getTeamOverrides();
     const captains = getEffectiveCaptains();
+    const removed = getRemovedPlayers();
     const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team }));
-    return basePlayers.concat(added).map((p) => {
-      const team = teamOverrides[p.name] || p.team;
-      return {
-        name: p.name,
-        team,
-        isCaptain: captains[team] === p.name
-      };
-    });
+    return basePlayers
+      .concat(added)
+      .filter((p) => !removed.includes(p.name))
+      .map((p) => {
+        const team = teamOverrides[p.name] || p.team;
+        return {
+          name: p.name,
+          team,
+          isCaptain: captains[team] === p.name
+        };
+      });
   }
 
   function renderRosters() {
@@ -1337,28 +1410,66 @@
     }
   }
 
-  const addPlayerModal = document.getElementById("addPlayerModal");
+  const addRemovePlayerModal = document.getElementById("addRemovePlayerModal");
+  const arpScreens = addRemovePlayerModal.querySelectorAll(".wizard-screen");
   const newPlayerName = document.getElementById("newPlayerName");
   const newPlayerTeam = document.getElementById("newPlayerTeam");
+  const removePlayerSelect = document.getElementById("removePlayerSelect");
+  const removePlayerTeam = document.getElementById("removePlayerTeam");
+  const removeConfirmModal = document.getElementById("removeConfirmModal");
+  let pendingRemovalName = "";
 
-  function closeAddPlayerModal() {
-    addPlayerModal.classList.remove("open");
-    newPlayerName.value = "";
-    newPlayerTeam.value = "";
-  }
-
-  const addPlayerBtn = document.getElementById("addPlayerBtn");
-  if (addPlayerBtn) {
-    addPlayerBtn.addEventListener("click", () => {
-      addPlayerModal.classList.add("open");
+  function showArpScreen(screenId) {
+    arpScreens.forEach((screen) => {
+      screen.style.display = screen.id === screenId ? "block" : "none";
     });
   }
 
-  document.getElementById("cancelPlayerBtn").addEventListener("click", closeAddPlayerModal);
+  function closeAddPlayerModal() {
+    addRemovePlayerModal.classList.remove("open");
+    newPlayerName.value = "";
+    newPlayerTeam.value = "";
+    removePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+    removePlayerTeam.textContent = "—";
+    showArpScreen("arpChoiceScreen");
+  }
 
-  addPlayerModal.addEventListener("click", (event) => {
-    if (event.target === addPlayerModal) closeAddPlayerModal();
+  function closeRemoveConfirmModal() {
+    removeConfirmModal.classList.remove("open");
+    pendingRemovalName = "";
+  }
+
+  const addRemovePlayerBtn = document.getElementById("addRemovePlayerBtn");
+  if (addRemovePlayerBtn) {
+    addRemovePlayerBtn.addEventListener("click", () => {
+      addRemovePlayerModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("arpChoiceCancel").addEventListener("click", closeAddPlayerModal);
+
+  document.getElementById("arpChooseAdd").addEventListener("click", () => {
+    showArpScreen("arpAddScreen");
   });
+
+  document.getElementById("arpChooseRemove").addEventListener("click", () => {
+    const players = getEffectivePlayers().slice().sort((a, b) => a.name.localeCompare(b.name));
+    removePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+    players.forEach((p) => {
+      const option = document.createElement("option");
+      option.value = p.name;
+      option.textContent = p.isCaptain ? p.name + " (C)" : p.name;
+      option.dataset.team = p.team;
+      removePlayerSelect.appendChild(option);
+    });
+    showArpScreen("arpRemoveScreen");
+  });
+
+  addRemovePlayerModal.addEventListener("click", (event) => {
+    if (event.target === addRemovePlayerModal) closeAddPlayerModal();
+  });
+
+  document.getElementById("cancelPlayerBtn").addEventListener("click", closeAddPlayerModal);
 
   document.getElementById("savePlayerBtn").addEventListener("click", () => {
     const name = newPlayerName.value.trim();
@@ -1374,6 +1485,45 @@
 
     renderRosters();
     closeAddPlayerModal();
+  });
+
+  removePlayerSelect.addEventListener("change", () => {
+    const selected = removePlayerSelect.selectedOptions[0];
+    removePlayerTeam.textContent = selected && selected.value ? selected.dataset.team : "—";
+  });
+
+  document.getElementById("cancelRemoveBtn").addEventListener("click", closeAddPlayerModal);
+
+  document.getElementById("removePlayerBtn").addEventListener("click", () => {
+    if (!removePlayerSelect.value) {
+      return;
+    }
+    pendingRemovalName = removePlayerSelect.value;
+    addRemovePlayerModal.classList.remove("open");
+    removeConfirmModal.classList.add("open");
+  });
+
+  removeConfirmModal.addEventListener("click", (event) => {
+    if (event.target === removeConfirmModal) {
+      closeRemoveConfirmModal();
+      addRemovePlayerModal.classList.add("open");
+    }
+  });
+
+  document.getElementById("confirmRemoveYes").addEventListener("click", () => {
+    const removed = getRemovedPlayers();
+    removed.push(pendingRemovalName);
+    localStorage.setItem(REMOVED_PLAYERS_KEY, JSON.stringify(removed));
+
+    renderRosters();
+    closeRemoveConfirmModal();
+    closeAddPlayerModal();
+  });
+
+  document.getElementById("confirmRemoveNo").addEventListener("click", () => {
+    closeRemoveConfirmModal();
+    addRemovePlayerModal.classList.add("open");
+    showArpScreen("arpRemoveScreen");
   });
 
   const tradePlayerModal = document.getElementById("tradePlayerModal");
