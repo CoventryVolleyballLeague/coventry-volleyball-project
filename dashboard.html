@@ -1026,6 +1026,7 @@
       <div class="settings-actions">
         <button class="settings-action-btn" id="addPlayerBtn">Add Player</button>
         <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
+        <button class="settings-action-btn" id="changeCaptainBtn">Change Team Captains</button>
         <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
@@ -1096,6 +1097,40 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="changeCaptainModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Change Team Captains</h2>
+
+    <div class="field">
+      <label for="captainTeamSelect">Select Team Name</label>
+      <select id="captainTeamSelect">
+        <option value="">Choose a team&hellip;</option>
+        <option>Invincibles</option>
+        <option>Coventry Chasers</option>
+        <option>Coventry Sixers</option>
+        <option>Crossfires</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Current Captain</label>
+      <div class="current-team-display" id="currentCaptainDisplay">&mdash;</div>
+    </div>
+
+    <div class="field">
+      <label for="newCaptainSelect">New Captain</label>
+      <select id="newCaptainSelect">
+        <option value="">Choose a player&hellip;</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveCaptainBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelCaptainBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const role = sessionStorage.getItem("role");
   if (role !== "admin" && role !== "guest") {
@@ -1156,22 +1191,26 @@
       photoModal.classList.remove("open");
       closeAddPlayerModal();
       closeTradePlayerModal();
+      closeChangeCaptainModal();
     }
   });
 
   const ADDED_PLAYERS_KEY = "addedPlayers";
   const TEAM_OVERRIDES_KEY = "teamOverrides";
+  const TEAM_CAPTAINS_KEY = "teamCaptains";
 
   // Capture the original hardcoded roster once, before any dynamic rendering touches the DOM.
+  // Captain status is tracked separately from the name so captaincy can move between players.
   const basePlayers = [];
+  const defaultCaptains = {};
   document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
     ul.querySelectorAll("li").forEach((li) => {
       if (li.classList.contains("empty-note")) return;
-      basePlayers.push({
-        name: li.textContent,
-        team: ul.dataset.team,
-        isCaptain: li.classList.contains("captain")
-      });
+      const isCaptain = li.classList.contains("captain");
+      const name = li.textContent.replace(/\s*\(C\)$/, "");
+      const team = ul.dataset.team;
+      basePlayers.push({ name, team });
+      if (isCaptain) defaultCaptains[team] = name;
     });
   });
 
@@ -1185,14 +1224,27 @@
     return raw ? JSON.parse(raw) : {};
   }
 
+  function getTeamCaptainOverrides() {
+    const raw = localStorage.getItem(TEAM_CAPTAINS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function getEffectiveCaptains() {
+    return Object.assign({}, defaultCaptains, getTeamCaptainOverrides());
+  }
+
   function getEffectivePlayers() {
-    const overrides = getTeamOverrides();
-    const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team, isCaptain: false }));
-    return basePlayers.concat(added).map((p) => ({
-      name: p.name,
-      isCaptain: p.isCaptain,
-      team: overrides[p.name] || p.team
-    }));
+    const teamOverrides = getTeamOverrides();
+    const captains = getEffectiveCaptains();
+    const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team }));
+    return basePlayers.concat(added).map((p) => {
+      const team = teamOverrides[p.name] || p.team;
+      return {
+        name: p.name,
+        team,
+        isCaptain: captains[team] === p.name
+      };
+    });
   }
 
   function renderRosters() {
@@ -1213,8 +1265,12 @@
       if (!ul) return;
       grouped[team].forEach((p) => {
         const li = document.createElement("li");
-        if (p.isCaptain) li.classList.add("captain");
-        li.textContent = p.name;
+        if (p.isCaptain) {
+          li.classList.add("captain");
+          li.textContent = p.name + " (C)";
+        } else {
+          li.textContent = p.name;
+        }
         ul.appendChild(li);
       });
     });
@@ -1285,7 +1341,7 @@
     players.forEach((p) => {
       const option = document.createElement("option");
       option.value = p.name;
-      option.textContent = p.name;
+      option.textContent = p.isCaptain ? p.name + " (C)" : p.name;
       option.dataset.team = p.team;
       tradePlayerSelect.appendChild(option);
     });
@@ -1324,6 +1380,69 @@
 
     renderRosters();
     closeTradePlayerModal();
+  });
+
+  const changeCaptainModal = document.getElementById("changeCaptainModal");
+  const captainTeamSelect = document.getElementById("captainTeamSelect");
+  const currentCaptainDisplay = document.getElementById("currentCaptainDisplay");
+  const newCaptainSelect = document.getElementById("newCaptainSelect");
+
+  function closeChangeCaptainModal() {
+    changeCaptainModal.classList.remove("open");
+    captainTeamSelect.value = "";
+    currentCaptainDisplay.textContent = "—";
+    newCaptainSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+  }
+
+  function updateCaptainFieldsForTeam(team) {
+    const captains = getEffectiveCaptains();
+    currentCaptainDisplay.textContent = captains[team] || "—";
+
+    newCaptainSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+    if (!team) return;
+
+    getEffectivePlayers()
+      .filter((p) => p.team === team)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        const option = document.createElement("option");
+        option.value = p.name;
+        option.textContent = p.name;
+        newCaptainSelect.appendChild(option);
+      });
+  }
+
+  const changeCaptainBtn = document.getElementById("changeCaptainBtn");
+  if (changeCaptainBtn) {
+    changeCaptainBtn.addEventListener("click", () => {
+      changeCaptainModal.classList.add("open");
+    });
+  }
+
+  captainTeamSelect.addEventListener("change", () => {
+    updateCaptainFieldsForTeam(captainTeamSelect.value);
+  });
+
+  document.getElementById("cancelCaptainBtn").addEventListener("click", closeChangeCaptainModal);
+
+  changeCaptainModal.addEventListener("click", (event) => {
+    if (event.target === changeCaptainModal) closeChangeCaptainModal();
+  });
+
+  document.getElementById("saveCaptainBtn").addEventListener("click", () => {
+    const team = captainTeamSelect.value;
+    const newCaptain = newCaptainSelect.value;
+
+    if (!team || !newCaptain) {
+      return;
+    }
+
+    const captains = getTeamCaptainOverrides();
+    captains[team] = newCaptain;
+    localStorage.setItem(TEAM_CAPTAINS_KEY, JSON.stringify(captains));
+
+    renderRosters();
+    closeChangeCaptainModal();
   });
 
   renderRosters();
