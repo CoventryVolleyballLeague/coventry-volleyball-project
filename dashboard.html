@@ -124,11 +124,37 @@
     font-weight: 700;
   }
 
+  .about-content {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+  }
+
   .about-text {
-    max-width: 720px;
+    flex: 1 1 420px;
+    max-width: 620px;
     font-size: 1.05rem;
     line-height: 1.8;
     color: var(--text);
+  }
+
+  .about-photo {
+    flex: 1 1 320px;
+    max-width: 420px;
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.12);
+  }
+
+  @media (max-width: 900px) {
+    .about-content {
+      flex-direction: column;
+    }
+
+    .about-photo {
+      max-width: 100%;
+    }
   }
 
   .page-section {
@@ -256,15 +282,18 @@
   <div class="main">
     <section class="page-section active" id="about">
       <h1 class="welcome-title">Welcome</h1>
-      <p class="about-text">
-        What started in 2024 as a handful of neighbors picking up a volleyball for fun has turned into
-        one of the best parts of our week. None of us were pros &mdash; just a group from the community
-        who fell in love with the game &mdash; and that evening get-together quickly became a tradition
-        everyone looks forward to. For us, volleyball time is community time: a chance to unwind, compete
-        a little, and catch up with familiar faces after a long day. This site is where we'll keep
-        everyone in the loop &mdash; league updates, live scores, team rosters, photos from game nights,
-        and everything in between. Come for the volleyball, stay for the community. Join us and enjoy!
-      </p>
+      <div class="about-content">
+        <p class="about-text">
+          What started in 2024 as a handful of neighbors picking up a volleyball for fun has turned into
+          one of the best parts of our week. None of us were pros &mdash; just a group from the community
+          who fell in love with the game &mdash; and that evening get-together quickly became a tradition
+          everyone looks forward to. For us, volleyball time is community time: a chance to unwind, compete
+          a little, and catch up with familiar faces after a long day. This site is where we'll keep
+          everyone in the loop &mdash; league updates, live scores, team rosters, photos from game nights,
+          and everything in between. Come for the volleyball, stay for the community. Join us and enjoy!
+        </p>
+        <img class="about-photo" src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night">
+      </div>
     </section>
 
     <section class="page-section" id="leagues">
