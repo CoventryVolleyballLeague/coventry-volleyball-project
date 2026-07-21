@@ -297,6 +297,19 @@
     display: block;
   }
 
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-header-row h2 {
+    margin-bottom: 0;
+  }
+
   .stat-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -946,7 +959,10 @@
         </div>
 
         <div class="scoreboard-card">
-          <h2 class="section-heading" style="margin-top: 0;">Current Match Score</h2>
+          <div class="section-header-row">
+            <h2 class="section-heading" style="margin-top: 0;">Current Match Score</h2>
+            <button class="btn-remove-player" id="resetMatchBtn" style="margin-bottom: 0;">Reset Match</button>
+          </div>
           <div class="match-winner-banner" id="matchWinnerAdmin">Match Winner: TBD</div>
           <div class="set-scores" id="setScoresAdmin"></div>
         </div>
@@ -1168,6 +1184,17 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="resetMatchConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Reset Match</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;">This clears all set scores and the rally log for the current match. Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn-remove-player" id="confirmResetYes">Yes, Reset</button>
+      <button class="btn-clear-rally" id="confirmResetNo">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tradePlayerModal">
   <div class="modal-box">
     <h2 class="modal-title">Trade Player</h2>
@@ -1236,7 +1263,62 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCHgi7azPzUoTrrY7LyvEsaAhPGyoxRDKo",
+    authDomain: "coventry-volleyball-league.firebaseapp.com",
+    databaseURL: "https://coventry-volleyball-league-default-rtdb.firebaseio.com",
+    projectId: "coventry-volleyball-league",
+    storageBucket: "coventry-volleyball-league.firebasestorage.app",
+    messagingSenderId: "527383934306",
+    appId: "1:527383934306:web:6929f1832b49afad8be83b"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getDatabase(firebaseApp);
+  const LEAGUE_PATH = "leagues/spring2026";
+
+  function defaultRallyState() {
+    return {
+      teamA: "Crossfires",
+      teamB: "Invincibles",
+      sets: [
+        { a: 0, b: 0, rallies: 0 },
+        { a: 0, b: 0, rallies: 0 },
+        { a: 0, b: 0, rallies: 0 }
+      ],
+      log: []
+    };
+  }
+
+  let remoteState = {
+    addedPlayers: [],
+    removedPlayers: [],
+    teamOverrides: {},
+    teamCaptains: {},
+    rallyState: defaultRallyState()
+  };
+
+  function writeToLeague(path, value) {
+    set(ref(db, LEAGUE_PATH + "/" + path), value);
+  }
+
+  onValue(ref(db, LEAGUE_PATH), (snapshot) => {
+    const data = snapshot.val() || {};
+    remoteState = {
+      addedPlayers: data.addedPlayers || [],
+      removedPlayers: data.removedPlayers || [],
+      teamOverrides: data.teamOverrides || {},
+      teamCaptains: data.teamCaptains || {},
+      rallyState: data.rallyState || defaultRallyState()
+    };
+    renderRosters();
+    renderAll();
+  });
+
   const role = sessionStorage.getItem("role");
   if (role !== "admin" && role !== "guest") {
     location.href = "index.html";
@@ -1308,13 +1390,9 @@
       closeRemoveConfirmModal();
       closeTradePlayerModal();
       closeChangeCaptainModal();
+      document.getElementById("resetMatchConfirmModal").classList.remove("open");
     }
   });
-
-  const ADDED_PLAYERS_KEY = "addedPlayers";
-  const TEAM_OVERRIDES_KEY = "teamOverrides";
-  const TEAM_CAPTAINS_KEY = "teamCaptains";
-  const REMOVED_PLAYERS_KEY = "removedPlayers";
 
   // Capture the original hardcoded roster once, before any dynamic rendering touches the DOM.
   // Captain status is tracked separately from the name so captaincy can move between players.
@@ -1332,18 +1410,15 @@
   });
 
   function getAddedPlayers() {
-    const raw = localStorage.getItem(ADDED_PLAYERS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return remoteState.addedPlayers;
   }
 
   function getTeamOverrides() {
-    const raw = localStorage.getItem(TEAM_OVERRIDES_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return remoteState.teamOverrides;
   }
 
   function getTeamCaptainOverrides() {
-    const raw = localStorage.getItem(TEAM_CAPTAINS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return remoteState.teamCaptains;
   }
 
   function getEffectiveCaptains() {
@@ -1351,8 +1426,7 @@
   }
 
   function getRemovedPlayers() {
-    const raw = localStorage.getItem(REMOVED_PLAYERS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return remoteState.removedPlayers;
   }
 
   function getEffectivePlayers() {
@@ -1479,9 +1553,8 @@
       return;
     }
 
-    const players = getAddedPlayers();
-    players.push({ name, team });
-    localStorage.setItem(ADDED_PLAYERS_KEY, JSON.stringify(players));
+    const players = getAddedPlayers().concat([{ name, team }]);
+    writeToLeague("addedPlayers", players);
 
     renderRosters();
     closeAddPlayerModal();
@@ -1511,9 +1584,8 @@
   });
 
   document.getElementById("confirmRemoveYes").addEventListener("click", () => {
-    const removed = getRemovedPlayers();
-    removed.push(pendingRemovalName);
-    localStorage.setItem(REMOVED_PLAYERS_KEY, JSON.stringify(removed));
+    const removed = getRemovedPlayers().concat([pendingRemovalName]);
+    writeToLeague("removedPlayers", removed);
 
     renderRosters();
     closeRemoveConfirmModal();
@@ -1577,9 +1649,9 @@
       return;
     }
 
-    const overrides = getTeamOverrides();
+    const overrides = Object.assign({}, getTeamOverrides());
     overrides[name] = newTeam;
-    localStorage.setItem(TEAM_OVERRIDES_KEY, JSON.stringify(overrides));
+    writeToLeague("teamOverrides", overrides);
 
     renderRosters();
     closeTradePlayerModal();
@@ -1640,9 +1712,9 @@
       return;
     }
 
-    const captains = getTeamCaptainOverrides();
+    const captains = Object.assign({}, getTeamCaptainOverrides());
     captains[team] = newCaptain;
-    localStorage.setItem(TEAM_CAPTAINS_KEY, JSON.stringify(captains));
+    writeToLeague("teamCaptains", captains);
 
     renderRosters();
     closeChangeCaptainModal();
@@ -1650,31 +1722,12 @@
 
   renderRosters();
 
-  const RALLY_KEY = "rallyTrackerState";
-
   function loadRallyState() {
-    const raw = localStorage.getItem(RALLY_KEY);
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch (e) {
-        // fall through to default state
-      }
-    }
-    return {
-      teamA: "Crossfires",
-      teamB: "Invincibles",
-      sets: [
-        { a: 0, b: 0, rallies: 0 },
-        { a: 0, b: 0, rallies: 0 },
-        { a: 0, b: 0, rallies: 0 }
-      ],
-      log: []
-    };
+    return remoteState.rallyState;
   }
 
   function saveRallyState(state) {
-    localStorage.setItem(RALLY_KEY, JSON.stringify(state));
+    writeToLeague("rallyState", state);
   }
 
   function computeSetWinner(set, index) {
@@ -1758,7 +1811,7 @@
   if (rallyForm) {
     rallyForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      const state = loadRallyState();
+      const state = JSON.parse(JSON.stringify(loadRallyState()));
       const setIndex = parseInt(document.getElementById("setSelect").value, 10) - 1;
       const winningTeamName = document.getElementById("winningTeamSelect").value;
       const player = document.getElementById("playerInput").value.trim();
@@ -1792,6 +1845,30 @@
       rallyForm.reset();
     });
   }
+
+  const resetMatchConfirmModal = document.getElementById("resetMatchConfirmModal");
+  const resetMatchBtn = document.getElementById("resetMatchBtn");
+
+  if (resetMatchBtn) {
+    resetMatchBtn.addEventListener("click", () => {
+      resetMatchConfirmModal.classList.add("open");
+    });
+  }
+
+  resetMatchConfirmModal.addEventListener("click", (event) => {
+    if (event.target === resetMatchConfirmModal) {
+      resetMatchConfirmModal.classList.remove("open");
+    }
+  });
+
+  document.getElementById("confirmResetNo").addEventListener("click", () => {
+    resetMatchConfirmModal.classList.remove("open");
+  });
+
+  document.getElementById("confirmResetYes").addEventListener("click", () => {
+    saveRallyState(defaultRallyState());
+    resetMatchConfirmModal.classList.remove("open");
+  });
 
   renderAll();
 </script>
