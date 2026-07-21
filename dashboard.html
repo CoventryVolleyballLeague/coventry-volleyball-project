@@ -208,6 +208,41 @@
     margin-bottom: 2rem;
   }
 
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .section-header-row h1 {
+    margin-bottom: 0;
+  }
+
+  .create-league-btn {
+    display: none;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    background: var(--navy);
+    color: white;
+    margin-bottom: 1.5rem;
+    transition: transform 0.15s ease;
+  }
+
+  .create-league-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  body.role-admin .create-league-btn {
+    display: inline-block;
+  }
+
   .stat-card {
     background: white;
     border: 1px solid #e5e0d5;
@@ -305,6 +340,176 @@
   table.data-table .code-cell {
     font-weight: 700;
     color: var(--gold);
+  }
+
+  .section-note {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .rally-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .rally-form-card,
+  .scoreboard-card {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-top: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
+    flex: 1 1 380px;
+  }
+
+  .field {
+    text-align: left;
+    margin-bottom: 1rem;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .field input,
+  .field select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid #d8d0bf;
+    border-radius: 8px;
+    background: white;
+    color: var(--text);
+  }
+
+  .field input:focus,
+  .field select:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+
+  .rally-form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .btn-save-rally,
+  .btn-clear-rally {
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+  }
+
+  .btn-save-rally {
+    background: var(--navy);
+    color: white;
+  }
+
+  .btn-clear-rally {
+    background: transparent;
+    color: var(--navy);
+  }
+
+  .match-winner-banner {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+  }
+
+  .set-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .set-card {
+    border: 1px solid #e5e0d5;
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    background: var(--cream);
+  }
+
+  .set-card-title {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .set-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .set-team {
+    text-align: center;
+    flex: 1;
+  }
+
+  .set-team-name {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .set-team-score {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .set-vs {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .set-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .set-winner-badge {
+    background: #ece6d8;
+    color: var(--navy);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .set-winner-badge.decided {
+    background: var(--gold);
+    color: white;
+  }
+
+  @media (max-width: 900px) {
+    .rally-layout {
+      flex-direction: column;
+    }
   }
 
   .dashboard {
@@ -420,6 +625,8 @@
   <div class="sidebar">
     <a class="nav-link active" href="#about" data-section="about">About Us</a>
     <a class="nav-link" href="#leagues" data-section="leagues">Leagues</a>
+    <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
+    <a class="nav-link" href="#live-scores" data-section="live-scores">Current Match Live Scores</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
     <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
@@ -452,20 +659,23 @@
     </div>
 
     <section class="page-section" id="leagues">
-      <h1>Leagues</h1>
+      <div class="section-header-row">
+        <h1>Leagues</h1>
+        <button class="create-league-btn" id="createLeagueBtn">Create a new league</button>
+      </div>
 
       <div class="stat-cards">
         <div class="stat-card">
           <div class="stat-label">Current #1 Seed</div>
-          <div class="stat-value">Crossfires</div>
-          <div class="stat-sub">Top seed from standings</div>
+          <div class="stat-value">TBD</div>
+          <div class="stat-sub">Updates once matches begin</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-label">Matches Complete</div>
-          <div class="stat-value">8/12</div>
-          <div class="stat-sub">67% complete</div>
-          <div class="progress-track"><div class="progress-fill" style="width: 67%;"></div></div>
+          <div class="stat-value">TBD</div>
+          <div class="stat-sub">Season not started yet</div>
+          <div class="progress-track"><div class="progress-fill" style="width: 0%;"></div></div>
         </div>
 
         <div class="stat-card">
@@ -476,9 +686,9 @@
 
         <div class="stat-card">
           <div class="stat-label">League Status</div>
-          <div class="stat-value">8 / 12</div>
-          <div class="stat-sub">Includes final when complete</div>
-          <div class="progress-track"><div class="progress-fill" style="width: 67%;"></div></div>
+          <div class="stat-value">TBD</div>
+          <div class="stat-sub">Season not started yet</div>
+          <div class="progress-track"><div class="progress-fill" style="width: 0%;"></div></div>
         </div>
       </div>
 
@@ -503,24 +713,24 @@
           </thead>
           <tbody>
             <tr>
-              <td>1</td>
+              <td>&mdash;</td>
               <td class="team-cell">Crossfires</td>
-              <td>6</td><td>5</td><td>1</td><td>11</td><td>4</td><td>2.75</td><td>351</td><td>310</td><td>1.13</td><td>10</td>
+              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
             </tr>
             <tr>
-              <td>2</td>
+              <td>&mdash;</td>
               <td class="team-cell">Invincibles</td>
-              <td>6</td><td>3</td><td>3</td><td>8</td><td>9</td><td>0.89</td><td>369</td><td>377</td><td>0.98</td><td>6</td>
+              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
             </tr>
             <tr>
-              <td>3</td>
+              <td>&mdash;</td>
               <td class="team-cell">Coventry Sixers</td>
-              <td>6</td><td>2</td><td>4</td><td>7</td><td>9</td><td>0.78</td><td>325</td><td>351</td><td>0.93</td><td>4</td>
+              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
             </tr>
             <tr>
-              <td>4</td>
+              <td>&mdash;</td>
               <td class="team-cell">Coventry Chasers</td>
-              <td>6</td><td>2</td><td>4</td><td>6</td><td>10</td><td>0.6</td><td>366</td><td>373</td><td>0.98</td><td>4</td>
+              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
             </tr>
           </tbody>
         </table>
@@ -548,6 +758,101 @@
             <tr><td class="code-cell">Playoff Rules</td><td>&mdash;</td><td>1st seed direct to Final; 2nd vs 3rd Semi-Final; 4th eliminated</td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="page-section" id="score-updates">
+      <h1>Score Updates</h1>
+      <p class="section-note">
+        Enter rally-by-rally points below. Scores update instantly on the "Current Match Live Scores"
+        tab &mdash; stored locally in this browser (not yet synced across devices).
+      </p>
+
+      <div class="rally-layout">
+        <div class="rally-form-card">
+          <h2 class="section-heading" style="margin-top: 0;">Rally Point Entry</h2>
+          <form id="rallyForm">
+            <div class="field">
+              <label for="matchSelect">Match</label>
+              <select id="matchSelect">
+                <option>Crossfires vs Invincibles</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="setSelect">Set</label>
+              <select id="setSelect">
+                <option value="1">Set 1</option>
+                <option value="2">Set 2</option>
+                <option value="3">Set 3</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="winningTeamSelect">Winning Team</label>
+              <select id="winningTeamSelect">
+                <option>Crossfires</option>
+                <option>Invincibles</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="playerInput">Player</label>
+              <input type="text" id="playerInput" placeholder="e.g. Murali (C)">
+            </div>
+
+            <div class="field">
+              <label for="pointTypeSelect">Point Type</label>
+              <select id="pointTypeSelect">
+                <option>Service Ace</option>
+                <option>Kill / Attack Point</option>
+                <option>Block Point</option>
+                <option>Opponent Fault</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="notesInput">Notes</label>
+              <input type="text" id="notesInput" placeholder="optional">
+            </div>
+
+            <div class="rally-form-actions">
+              <button type="submit" class="btn-save-rally">Save Rally</button>
+              <button type="button" class="btn-clear-rally" id="clearRallyBtn">Clear</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="scoreboard-card">
+          <h2 class="section-heading" style="margin-top: 0;">Current Match Score</h2>
+          <div class="match-winner-banner" id="matchWinnerAdmin">Match Winner: TBD</div>
+          <div class="set-scores" id="setScoresAdmin"></div>
+        </div>
+      </div>
+
+      <h2 class="section-heading">Full Rally Log</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rally No.</th>
+              <th>Winning Team</th>
+              <th>Player</th>
+              <th>Point Type</th>
+              <th>Score</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="rallyLogBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="page-section" id="live-scores">
+      <h1>Current Match Live Scores</h1>
+      <div class="scoreboard-card" style="max-width: 480px;">
+        <div class="match-winner-banner" id="matchWinnerGuest">Match Winner: TBD</div>
+        <div class="set-scores" id="setScoresGuest"></div>
       </div>
     </section>
 
@@ -669,8 +974,9 @@
     });
   });
 
+  const adminOnlySections = ["settings", "score-updates"];
   const initialSection = location.hash.replace("#", "") || "about";
-  if (document.getElementById(initialSection) && (initialSection !== "settings" || role === "admin")) {
+  if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
   }
 
@@ -695,6 +1001,147 @@
       photoModal.classList.remove("open");
     }
   });
+
+  const RALLY_KEY = "rallyTrackerState";
+
+  function loadRallyState() {
+    const raw = localStorage.getItem(RALLY_KEY);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        // fall through to default state
+      }
+    }
+    return {
+      teamA: "Crossfires",
+      teamB: "Invincibles",
+      sets: [
+        { a: 0, b: 0, rallies: 0 },
+        { a: 0, b: 0, rallies: 0 },
+        { a: 0, b: 0, rallies: 0 }
+      ],
+      log: []
+    };
+  }
+
+  function saveRallyState(state) {
+    localStorage.setItem(RALLY_KEY, JSON.stringify(state));
+  }
+
+  function computeSetWinner(set, index) {
+    const threshold = index === 2 ? 15 : 25;
+    if (set.a >= threshold && set.a - set.b >= 2) return "A";
+    if (set.b >= threshold && set.b - set.a >= 2) return "B";
+    return null;
+  }
+
+  function computeMatchWinner(state) {
+    let aWins = 0;
+    let bWins = 0;
+    state.sets.forEach((set, i) => {
+      const winner = computeSetWinner(set, i);
+      if (winner === "A") aWins++;
+      if (winner === "B") bWins++;
+    });
+    if (aWins >= 2) return state.teamA;
+    if (bWins >= 2) return state.teamB;
+    return "TBD";
+  }
+
+  function renderScoreboard(container, state) {
+    if (!container) return;
+    container.innerHTML = "";
+    state.sets.forEach((set, i) => {
+      const winner = computeSetWinner(set, i);
+      const winnerLabel = winner === "A" ? state.teamA : winner === "B" ? state.teamB : "TBD";
+      const card = document.createElement("div");
+      card.className = "set-card";
+      card.innerHTML =
+        '<div class="set-card-title">Set ' + (i + 1) + '</div>' +
+        '<div class="set-score-row">' +
+          '<div class="set-team"><div class="set-team-name">' + state.teamA + '</div><div class="set-team-score">' + set.a + '</div></div>' +
+          '<div class="set-vs">vs</div>' +
+          '<div class="set-team"><div class="set-team-name">' + state.teamB + '</div><div class="set-team-score">' + set.b + '</div></div>' +
+        '</div>' +
+        '<div class="set-card-footer">' +
+          '<span>' + set.rallies + ' rallies</span>' +
+          '<span class="set-winner-badge' + (winner ? ' decided' : '') + '">Set Winner: ' + winnerLabel + '</span>' +
+        '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  function renderRallyLog(state) {
+    const tbody = document.getElementById("rallyLogBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    state.log.slice().reverse().forEach((entry) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td>' + entry.rallyNo + '</td>' +
+        '<td class="team-cell">' + entry.winningTeam + '</td>' +
+        '<td>' + (entry.player || "&mdash;") + '</td>' +
+        '<td>' + entry.pointType + '</td>' +
+        '<td>' + entry.scoreA + '-' + entry.scoreB + '</td>' +
+        '<td>' + (entry.notes || "&mdash;") + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderAll() {
+    const state = loadRallyState();
+    renderScoreboard(document.getElementById("setScoresAdmin"), state);
+    renderScoreboard(document.getElementById("setScoresGuest"), state);
+    renderRallyLog(state);
+
+    const matchWinnerText = "Match Winner: " + computeMatchWinner(state);
+    const mwAdmin = document.getElementById("matchWinnerAdmin");
+    const mwGuest = document.getElementById("matchWinnerGuest");
+    if (mwAdmin) mwAdmin.textContent = matchWinnerText;
+    if (mwGuest) mwGuest.textContent = matchWinnerText;
+  }
+
+  const rallyForm = document.getElementById("rallyForm");
+  if (rallyForm) {
+    rallyForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const state = loadRallyState();
+      const setIndex = parseInt(document.getElementById("setSelect").value, 10) - 1;
+      const winningTeamName = document.getElementById("winningTeamSelect").value;
+      const player = document.getElementById("playerInput").value.trim();
+      const pointType = document.getElementById("pointTypeSelect").value;
+      const notes = document.getElementById("notesInput").value.trim();
+
+      const set = state.sets[setIndex];
+      if (winningTeamName === state.teamA) {
+        set.a++;
+      } else {
+        set.b++;
+      }
+      set.rallies++;
+
+      state.log.push({
+        rallyNo: state.log.length + 1,
+        winningTeam: winningTeamName,
+        player,
+        pointType,
+        scoreA: set.a,
+        scoreB: set.b,
+        notes
+      });
+
+      saveRallyState(state);
+      renderAll();
+      rallyForm.reset();
+    });
+
+    document.getElementById("clearRallyBtn").addEventListener("click", () => {
+      rallyForm.reset();
+    });
+  }
+
+  renderAll();
 </script>
 
 </body>
