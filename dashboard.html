@@ -201,6 +201,112 @@
     display: block;
   }
 
+  .stat-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-top: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.35rem;
+  }
+
+  .stat-card .stat-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+  }
+
+  .progress-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #ece6d8;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 999px;
+  }
+
+  .section-heading {
+    color: var(--navy);
+    font-size: 1.3rem;
+    margin: 2rem 0 1rem;
+  }
+
+  .section-heading:first-child {
+    margin-top: 0;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
+  }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  table.data-table th {
+    background: var(--navy);
+    color: white;
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  table.data-table td {
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid #f0ebe1;
+  }
+
+  table.data-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  table.data-table td.team-cell {
+    font-weight: 600;
+    color: var(--navy);
+    white-space: normal;
+  }
+
+  table.data-table .code-cell {
+    font-weight: 700;
+    color: var(--gold);
+  }
+
   .dashboard {
     border: 1px dashed #cfc7b4;
     border-radius: 8px;
@@ -257,6 +363,10 @@
     .team-grid {
       grid-template-columns: repeat(2, minmax(180px, 1fr));
     }
+
+    .stat-cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   @media (max-width: 680px) {
@@ -288,6 +398,10 @@
     }
 
     .team-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stat-cards {
       grid-template-columns: 1fr;
     }
   }
@@ -339,8 +453,101 @@
 
     <section class="page-section" id="leagues">
       <h1>Leagues</h1>
-      <div class="dashboard">
-        League details coming soon
+
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-label">Current #1 Seed</div>
+          <div class="stat-value">Crossfires</div>
+          <div class="stat-sub">Top seed from standings</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Matches Complete</div>
+          <div class="stat-value">8/12</div>
+          <div class="stat-sub">67% complete</div>
+          <div class="progress-track"><div class="progress-fill" style="width: 67%;"></div></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Champion</div>
+          <div class="stat-value">TBD</div>
+          <div class="stat-sub">Updates after final</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">League Status</div>
+          <div class="stat-value">8 / 12</div>
+          <div class="stat-sub">Includes final when complete</div>
+          <div class="progress-track"><div class="progress-fill" style="width: 67%;"></div></div>
+        </div>
+      </div>
+
+      <h2 class="section-heading">Live Standings</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Seed</th>
+              <th>Team</th>
+              <th>P</th>
+              <th>W</th>
+              <th>L</th>
+              <th>SW</th>
+              <th>SL</th>
+              <th>SR</th>
+              <th>PF</th>
+              <th>PA</th>
+              <th>PR</th>
+              <th>MP</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td class="team-cell">Crossfires</td>
+              <td>6</td><td>5</td><td>1</td><td>11</td><td>4</td><td>2.75</td><td>351</td><td>310</td><td>1.13</td><td>10</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td class="team-cell">Invincibles</td>
+              <td>6</td><td>3</td><td>3</td><td>8</td><td>9</td><td>0.89</td><td>369</td><td>377</td><td>0.98</td><td>6</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td class="team-cell">Coventry Sixers</td>
+              <td>6</td><td>2</td><td>4</td><td>7</td><td>9</td><td>0.78</td><td>325</td><td>351</td><td>0.93</td><td>4</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td class="team-cell">Coventry Chasers</td>
+              <td>6</td><td>2</td><td>4</td><td>6</td><td>10</td><td>0.6</td><td>366</td><td>373</td><td>0.98</td><td>4</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-heading">Standings Abbreviations</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Meaning</th>
+              <th>How to read it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="code-cell">SW</td><td>Sets Won</td><td>Total sets the team won across completed round-robin matches</td></tr>
+            <tr><td class="code-cell">SL</td><td>Sets Lost</td><td>Total sets the team lost across completed round-robin matches</td></tr>
+            <tr><td class="code-cell">SR</td><td>Set Ratio</td><td>SW &divide; SL</td></tr>
+            <tr><td class="code-cell">PF</td><td>Points For</td><td>Total rally points scored by the team</td></tr>
+            <tr><td class="code-cell">PA</td><td>Points Against</td><td>Total rally points allowed against the team</td></tr>
+            <tr><td class="code-cell">PR</td><td>Point Ratio</td><td>PF &divide; PA</td></tr>
+            <tr><td class="code-cell">MP</td><td>Match Points</td><td>Win = 2 MP, Loss = 0 MP</td></tr>
+            <tr><td class="code-cell">Tiebreakers</td><td>&mdash;</td><td>MP &rarr; SR &rarr; PR &rarr; Point Difference, used for seeding</td></tr>
+            <tr><td class="code-cell">Playoff Rules</td><td>&mdash;</td><td>1st seed direct to Final; 2nd vs 3rd Semi-Final; 4th eliminated</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
