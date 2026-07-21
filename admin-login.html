@@ -129,7 +129,7 @@
       <input type="password" id="password" name="password" autocomplete="current-password">
     </div>
 
-    <p class="error" id="errorMsg">Please enter both a username and password.</p>
+    <p class="error" id="errorMsg">Incorrect credentials 😞 Let's Try again!!!</p>
 
     <button type="submit">Login</button>
   </form>
@@ -144,11 +144,12 @@
     const password = document.getElementById("password").value.trim();
     const errorMsg = document.getElementById("errorMsg");
 
-    if (!username || !password) {
+    if (username !== "Coventry123" || password !== "PaintersWay123$") {
       errorMsg.classList.add("visible");
       return;
     }
 
+    errorMsg.classList.remove("visible");
     sessionStorage.setItem("role", "admin");
     location.href = "dashboard.html";
   });
