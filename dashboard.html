@@ -343,6 +343,59 @@
     transform: translateY(-3px);
   }
 
+  #activeLeagueLabel {
+    display: block;
+    margin-top: 0.5rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .history-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-top: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1.1rem 1.5rem;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
+  }
+
+  .history-card-name {
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 1.05rem;
+  }
+
+  .history-card-name .active-badge {
+    display: inline-block;
+    margin-left: 0.6rem;
+    background: var(--gold);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    vertical-align: middle;
+  }
+
+  .history-card-date {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+  }
+
   .stat-card {
     background: white;
     border: 1px solid #e5e0d5;
@@ -769,6 +822,7 @@
     <a class="nav-link" href="#about" data-section="about">About Us</a>
     <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
     <a class="nav-link admin-only" href="#settings" data-section="settings">Settings</a>
+    <a class="nav-link admin-only" href="#history" data-section="history">History</a>
     <div class="switch-role">
       <a href="index.html" id="switchRoleLink">Switch role</a>
     </div>
@@ -899,8 +953,8 @@
     <section class="page-section" id="score-updates">
       <h1>Score Updates</h1>
       <p class="section-note">
-        Enter rally-by-rally points below. Scores update instantly on the "Current Match Live Scores"
-        tab &mdash; stored locally in this browser (not yet synced across devices).
+        Enter rally-by-rally points below. Scores sync live to the "Current Match Live Scores" tab
+        for every visitor, on any device.<span id="activeLeagueLabelScoreUpdates"></span>
       </p>
 
       <div class="rally-layout">
@@ -1096,7 +1150,10 @@
 
     <section class="page-section" id="settings">
       <h1>Settings</h1>
-      <p class="section-note">Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).</p>
+      <p class="section-note">
+        Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).
+        <span id="activeLeagueLabel"></span>
+      </p>
       <div class="settings-actions">
         <button class="settings-action-btn" id="addRemovePlayerBtn">Add/Remove Player</button>
         <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
@@ -1105,6 +1162,24 @@
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
+    </section>
+
+    <section class="page-section" id="history">
+      <h1>History</h1>
+      <p class="section-note">Every league ever created. Delete a league to permanently clear its data (rosters, trades, scores, rally log) from the database.</p>
+
+      <div class="stat-card" style="max-width: 420px; margin-bottom: 1.5rem;">
+        <div class="stat-label">Available Remaining Storage</div>
+        <div class="stat-value" id="storageRemainingValue">&mdash;</div>
+        <div class="stat-sub" id="storageUsedSub"></div>
+        <div class="progress-track"><div class="progress-fill" id="storageProgressFill" style="width: 0%;"></div></div>
+        <div class="stat-sub" style="margin-top: 0.6rem;">
+          Estimated from the size of your league data vs. the 1GB Firebase free-tier limit
+          &mdash; Firebase doesn't expose live usage to client apps, so this isn't a direct quota reading.
+        </div>
+      </div>
+
+      <div class="history-list" id="historyList"></div>
     </section>
   </div>
 </div>
@@ -1195,6 +1270,33 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="createLeagueModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Create a New League</h2>
+
+    <div class="field">
+      <label for="newLeagueName">League Name</label>
+      <input type="text" id="newLeagueName" placeholder="e.g. Fall 2026">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveLeagueBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelLeagueBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteLeagueConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Delete League</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;" id="deleteLeagueMessage">This permanently deletes this league's data. Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn-remove-player" id="confirmDeleteLeagueYes">Yes, Delete</button>
+      <button class="btn-clear-rally" id="confirmDeleteLeagueNo">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tradePlayerModal">
   <div class="modal-box">
     <h2 class="modal-title">Trade Player</h2>
@@ -1265,7 +1367,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCHgi7azPzUoTrrY7LyvEsaAhPGyoxRDKo",
@@ -1279,7 +1381,6 @@
 
   const firebaseApp = initializeApp(firebaseConfig);
   const db = getDatabase(firebaseApp);
-  const LEAGUE_PATH = "leagues/spring2026";
 
   function defaultRallyState() {
     return {
@@ -1294,29 +1395,63 @@
     };
   }
 
-  let remoteState = {
-    addedPlayers: [],
-    removedPlayers: [],
-    teamOverrides: {},
-    teamCaptains: {},
-    rallyState: defaultRallyState()
-  };
-
-  function writeToLeague(path, value) {
-    set(ref(db, LEAGUE_PATH + "/" + path), value);
+  function defaultRemoteState() {
+    return {
+      name: "",
+      addedPlayers: [],
+      removedPlayers: [],
+      teamOverrides: {},
+      teamCaptains: {},
+      rallyState: defaultRallyState()
+    };
   }
 
-  onValue(ref(db, LEAGUE_PATH), (snapshot) => {
+  let allLeagues = {};
+  let activeLeagueId = null;
+  let remoteState = defaultRemoteState();
+
+  function writeToLeague(path, value) {
+    if (!activeLeagueId) return;
+    set(ref(db, "leagues/" + activeLeagueId + "/" + path), value);
+  }
+
+  function slugify(name) {
+    return name.trim().toLowerCase().replace(/[.#$\[\]/]/g, "").replace(/\s+/g, "-") || "league";
+  }
+
+  onValue(ref(db, "leagues"), (snapshot) => {
     const data = snapshot.val() || {};
-    remoteState = {
-      addedPlayers: data.addedPlayers || [],
-      removedPlayers: data.removedPlayers || [],
-      teamOverrides: data.teamOverrides || {},
-      teamCaptains: data.teamCaptains || {},
-      rallyState: data.rallyState || defaultRallyState()
-    };
+    activeLeagueId = data._active || null;
+    allLeagues = {};
+    Object.keys(data).forEach((key) => {
+      if (key === "_active") return;
+      allLeagues[key] = data[key];
+    });
+
+    const activeData = activeLeagueId ? allLeagues[activeLeagueId] : null;
+    const rs = (activeData && activeData.rallyState) || {};
+    const rsDefaults = defaultRallyState();
+    remoteState = activeData
+      ? {
+          name: activeData.name || activeLeagueId,
+          addedPlayers: activeData.addedPlayers || [],
+          removedPlayers: activeData.removedPlayers || [],
+          teamOverrides: activeData.teamOverrides || {},
+          teamCaptains: activeData.teamCaptains || {},
+          rallyState: {
+            teamA: rs.teamA || rsDefaults.teamA,
+            teamB: rs.teamB || rsDefaults.teamB,
+            sets: rs.sets || rsDefaults.sets,
+            log: rs.log || []
+          }
+        }
+      : defaultRemoteState();
+
     renderRosters();
     renderAll();
+    renderHistoryList();
+    renderActiveLeagueLabel();
+    renderStorageEstimate(data);
   });
 
   const role = sessionStorage.getItem("role");
@@ -1361,7 +1496,7 @@
     });
   });
 
-  const adminOnlySections = ["settings", "score-updates"];
+  const adminOnlySections = ["settings", "score-updates", "history"];
   const initialSection = location.hash.replace("#", "") || "live-scores";
   if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
@@ -1391,6 +1526,8 @@
       closeTradePlayerModal();
       closeChangeCaptainModal();
       document.getElementById("resetMatchConfirmModal").classList.remove("open");
+      document.getElementById("createLeagueModal").classList.remove("open");
+      document.getElementById("deleteLeagueConfirmModal").classList.remove("open");
     }
   });
 
@@ -1868,6 +2005,145 @@
   document.getElementById("confirmResetYes").addEventListener("click", () => {
     saveRallyState(defaultRallyState());
     resetMatchConfirmModal.classList.remove("open");
+  });
+
+  function renderActiveLeagueLabel() {
+    const text = activeLeagueId
+      ? " Active league: " + (remoteState.name || activeLeagueId)
+      : " No active league yet — create one below.";
+    ["activeLeagueLabel", "activeLeagueLabelScoreUpdates"].forEach((id) => {
+      const label = document.getElementById(id);
+      if (label) label.textContent = text;
+    });
+  }
+
+  const FREE_TIER_BYTES = 1024 * 1024 * 1024; // Firebase Realtime Database Spark plan: 1GB
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+  }
+
+  function renderStorageEstimate(leaguesData) {
+    const valueEl = document.getElementById("storageRemainingValue");
+    const subEl = document.getElementById("storageUsedSub");
+    const fillEl = document.getElementById("storageProgressFill");
+    if (!valueEl) return;
+
+    const usedBytes = new TextEncoder().encode(JSON.stringify(leaguesData || {})).length;
+    const remainingBytes = Math.max(FREE_TIER_BYTES - usedBytes, 0);
+    const usedPercent = (usedBytes / FREE_TIER_BYTES) * 100;
+
+    valueEl.textContent = formatBytes(remainingBytes) + " free";
+    subEl.textContent = formatBytes(usedBytes) + " used of " + formatBytes(FREE_TIER_BYTES) + " (" + usedPercent.toFixed(4) + "% used)";
+    fillEl.style.width = Math.min(Math.max(usedPercent, 0.5), 100) + "%";
+  }
+
+  function renderHistoryList() {
+    const container = document.getElementById("historyList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const ids = Object.keys(allLeagues);
+    if (!ids.length) {
+      container.innerHTML = '<p class="section-note">No leagues yet. Create one from Settings.</p>';
+      return;
+    }
+
+    ids
+      .sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0))
+      .forEach((id) => {
+        const league = allLeagues[id];
+        const isActive = id === activeLeagueId;
+        const card = document.createElement("div");
+        card.className = "history-card";
+        const createdLabel = league.createdAt ? new Date(league.createdAt).toLocaleDateString() : "Unknown date";
+        card.innerHTML =
+          '<div>' +
+            '<div class="history-card-name">' + (league.name || id) + (isActive ? '<span class="active-badge">Active</span>' : '') + '</div>' +
+            '<div class="history-card-date">Created ' + createdLabel + '</div>' +
+          '</div>';
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn-remove-player";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", () => {
+          pendingDeleteLeagueId = id;
+          document.getElementById("deleteLeagueMessage").textContent =
+            'Permanently delete "' + (league.name || id) + '"? This clears its rosters, trades, scores, and rally log from the database.';
+          deleteLeagueConfirmModal.classList.add("open");
+        });
+        card.appendChild(deleteBtn);
+        container.appendChild(card);
+      });
+  }
+
+  const createLeagueModal = document.getElementById("createLeagueModal");
+  const newLeagueName = document.getElementById("newLeagueName");
+  const deleteLeagueConfirmModal = document.getElementById("deleteLeagueConfirmModal");
+  let pendingDeleteLeagueId = "";
+
+  function closeCreateLeagueModal() {
+    createLeagueModal.classList.remove("open");
+    newLeagueName.value = "";
+  }
+
+  function closeDeleteLeagueConfirmModal() {
+    deleteLeagueConfirmModal.classList.remove("open");
+    pendingDeleteLeagueId = "";
+  }
+
+  const createLeagueBtn = document.getElementById("createLeagueBtn");
+  if (createLeagueBtn) {
+    createLeagueBtn.addEventListener("click", () => {
+      createLeagueModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelLeagueBtn").addEventListener("click", closeCreateLeagueModal);
+
+  createLeagueModal.addEventListener("click", (event) => {
+    if (event.target === createLeagueModal) closeCreateLeagueModal();
+  });
+
+  document.getElementById("saveLeagueBtn").addEventListener("click", () => {
+    const name = newLeagueName.value.trim();
+    if (!name) return;
+
+    const id = slugify(name) + "-" + Date.now();
+    set(ref(db, "leagues/" + id), {
+      name,
+      createdAt: Date.now(),
+      rallyState: defaultRallyState()
+    });
+    set(ref(db, "leagues/_active"), id);
+
+    closeCreateLeagueModal();
+  });
+
+  deleteLeagueConfirmModal.addEventListener("click", (event) => {
+    if (event.target === deleteLeagueConfirmModal) closeDeleteLeagueConfirmModal();
+  });
+
+  document.getElementById("confirmDeleteLeagueNo").addEventListener("click", closeDeleteLeagueConfirmModal);
+
+  document.getElementById("confirmDeleteLeagueYes").addEventListener("click", () => {
+    const idToDelete = pendingDeleteLeagueId;
+    if (!idToDelete) return;
+
+    remove(ref(db, "leagues/" + idToDelete));
+
+    if (idToDelete === activeLeagueId) {
+      const remaining = Object.keys(allLeagues).filter((id) => id !== idToDelete);
+      if (remaining.length) {
+        set(ref(db, "leagues/_active"), remaining[0]);
+      } else {
+        remove(ref(db, "leagues/_active"));
+      }
+    }
+
+    closeDeleteLeagueConfirmModal();
   });
 
   renderAll();
