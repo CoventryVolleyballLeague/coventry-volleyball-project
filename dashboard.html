@@ -224,39 +224,30 @@
     margin-bottom: 2rem;
   }
 
-  .section-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .settings-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
-    flex-wrap: wrap;
   }
 
-  .section-header-row h1 {
-    margin-bottom: 0;
-  }
-
-  .create-league-btn {
-    display: none;
+  .settings-action-btn {
     font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 0.7rem 1.4rem;
-    border-radius: 999px;
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-top: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1.5rem 1.25rem;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
     cursor: pointer;
-    border: 2px solid var(--navy);
-    background: var(--navy);
-    color: white;
-    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--navy);
     transition: transform 0.15s ease;
   }
 
-  .create-league-btn:hover {
-    transform: translateY(-2px);
-  }
-
-  body.role-admin .create-league-btn {
-    display: inline-block;
+  .settings-action-btn:hover {
+    transform: translateY(-3px);
   }
 
   .stat-card {
@@ -590,6 +581,10 @@
     .stat-cards {
       grid-template-columns: repeat(2, 1fr);
     }
+
+    .settings-actions {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   @media (max-width: 680px) {
@@ -625,6 +620,10 @@
     }
 
     .stat-cards {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-actions {
       grid-template-columns: 1fr;
     }
   }
@@ -677,10 +676,7 @@
     </div>
 
     <section class="page-section" id="leagues">
-      <div class="section-header-row">
-        <h1>Leagues</h1>
-        <button class="create-league-btn" id="createLeagueBtn">Create a new league</button>
-      </div>
+      <h1>Leagues</h1>
 
       <div class="stat-cards">
         <div class="stat-card">
@@ -969,8 +965,12 @@
 
     <section class="page-section" id="settings">
       <h1>Settings</h1>
-      <div class="dashboard">
-        Admin settings coming soon
+      <p class="section-note">Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).</p>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="addPlayerBtn">Add Player</button>
+        <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
+        <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
+        <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
     </section>
   </div>
