@@ -146,6 +146,41 @@
     height: auto;
     border-radius: 12px;
     box-shadow: 0 8px 20px rgba(28, 43, 74, 0.12);
+    cursor: zoom-in;
+  }
+
+  .photo-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 43, 74, 0.85);
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    z-index: 100;
+  }
+
+  .photo-modal.open {
+    display: flex;
+  }
+
+  .photo-modal img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .photo-modal .close-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    color: white;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    background: none;
+    border: none;
   }
 
   @media (max-width: 900px) {
@@ -293,9 +328,14 @@
           everyone in the loop &mdash; league updates, live scores, team rosters, photos from game nights,
           and everything in between. Come for the volleyball, stay for the community. Join us and enjoy!
         </p>
-        <img class="about-photo" src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night">
+        <img class="about-photo" id="aboutPhoto" src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night">
       </div>
     </section>
+
+    <div class="photo-modal" id="photoModal">
+      <button class="close-btn" id="photoModalClose" aria-label="Close">&times;</button>
+      <img src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night, enlarged">
+    </div>
 
     <section class="page-section" id="leagues">
       <h1>Leagues</h1>
@@ -426,6 +466,28 @@
   if (document.getElementById(initialSection) && (initialSection !== "settings" || role === "admin")) {
     showSection(initialSection);
   }
+
+  const photoModal = document.getElementById("photoModal");
+
+  document.getElementById("aboutPhoto").addEventListener("click", () => {
+    photoModal.classList.add("open");
+  });
+
+  document.getElementById("photoModalClose").addEventListener("click", () => {
+    photoModal.classList.remove("open");
+  });
+
+  photoModal.addEventListener("click", (event) => {
+    if (event.target === photoModal) {
+      photoModal.classList.remove("open");
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      photoModal.classList.remove("open");
+    }
+  });
 </script>
 
 </body>
