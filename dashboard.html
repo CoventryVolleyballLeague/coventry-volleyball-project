@@ -976,6 +976,7 @@
     <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
+    <a class="nav-link" href="#league-rules" data-section="league-rules">League Rules</a>
     <a class="nav-link" href="#about" data-section="about">About Us</a>
     <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
     <a class="nav-link admin-only" href="#settings" data-section="settings">Settings</a>
@@ -1095,12 +1096,12 @@
           <tbody>
             <tr><td class="code-cell">SW</td><td>Sets Won</td><td>Total sets the team won across completed round-robin matches</td></tr>
             <tr><td class="code-cell">SL</td><td>Sets Lost</td><td>Total sets the team lost across completed round-robin matches</td></tr>
-            <tr><td class="code-cell">SR</td><td>Set Ratio</td><td>SW &divide; SL</td></tr>
+            <tr><td class="code-cell">SR</td><td>Set Ratio</td><td>SW &divide; SL (an undefeated team with SL = 0 ranks above any finite ratio)</td></tr>
             <tr><td class="code-cell">PF</td><td>Points For</td><td>Total rally points scored by the team</td></tr>
-            <tr><td class="code-cell">PA</td><td>Points Against</td><td>Total rally points allowed against the team</td></tr>
+            <tr><td class="code-cell">PA</td><td>Points Against</td><td>Total rally points conceded by the team</td></tr>
             <tr><td class="code-cell">PR</td><td>Point Ratio</td><td>PF &divide; PA</td></tr>
-            <tr><td class="code-cell">MP</td><td>Match Points</td><td>Win = 2 MP, Loss = 0 MP</td></tr>
-            <tr><td class="code-cell">Tiebreakers</td><td>&mdash;</td><td>MP &rarr; SR &rarr; PR &rarr; Point Difference, used for seeding</td></tr>
+            <tr><td class="code-cell">MP</td><td>Match Points</td><td>2&ndash;0 win = 3 MP (0 MP for the loser); 2&ndash;1 win = 2 MP (1 MP for the loser)</td></tr>
+            <tr><td class="code-cell">Tiebreakers</td><td>&mdash;</td><td>MP &rarr; SR &rarr; PR &rarr; Head-to-Head &rarr; Coin Toss, used for seeding</td></tr>
             <tr><td class="code-cell">Playoff Rules</td><td>&mdash;</td><td>1st seed direct to Final; 2nd vs 3rd Semi-Final; 4th eliminated</td></tr>
           </tbody>
         </table>
@@ -1120,9 +1121,7 @@
           <form id="rallyForm">
             <div class="field">
               <label for="matchSelect">Match</label>
-              <select id="matchSelect">
-                <option>Crossfires vs Invincibles</option>
-              </select>
+              <select id="matchSelect"></select>
             </div>
 
             <div class="field">
@@ -1262,6 +1261,24 @@
     <section class="page-section" id="schedule">
       <h1>Schedule</h1>
       <div class="schedule-list" id="publicScheduleList"></div>
+    </section>
+
+    <section class="page-section" id="league-rules">
+      <h1>League Rules</h1>
+      <p class="section-note">
+        The official CCVF Tournament Handbook covers how sets and matches are won, match points,
+        set/point ratios, seeding and tie-breaks, and all other league rules. Read it below or download a copy.
+      </p>
+      <a class="settings-action-btn" style="display: inline-block; text-decoration: none; margin-bottom: 1rem;"
+         href="Documents/CCVF_Official_Tournament_Handbook_Draft_v1.0_COMPLETE.pdf" download>
+        Download PDF
+      </a>
+      <div class="table-wrap">
+        <iframe src="Documents/CCVF_Official_Tournament_Handbook_Draft_v1.0_COMPLETE.pdf"
+                title="CCVF Official Tournament Handbook"
+                style="width: 100%; height: 80vh; border: 1px solid #d8d0bf; border-radius: 8px;">
+        </iframe>
+      </div>
     </section>
 
     <section class="page-section" id="feedback">
@@ -1606,8 +1623,6 @@
 
   function defaultRallyState() {
     return {
-      teamA: "Crossfires",
-      teamB: "Invincibles",
       sets: [
         { a: 0, b: 0, rallies: 0 },
         { a: 0, b: 0, rallies: 0 },
@@ -1626,7 +1641,8 @@
       teamCaptains: {},
       teamNames: {},
       schedule: {},
-      rallyState: defaultRallyState()
+      rallyStates: {},
+      activeMatchId: null
     };
   }
 
@@ -1635,6 +1651,25 @@
   let allLeagues = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
+  let selectedMatchId = null;
+
+  function getSortedScheduleIds() {
+    const schedule = remoteState.schedule || {};
+    return Object.keys(schedule).sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""));
+  }
+
+  function resolveSelectedMatchId(scheduleIds) {
+    // Guests always follow whichever match the admin has made active so
+    // live scores stay in sync; the admin keeps their own dropdown pick.
+    const role = sessionStorage.getItem("role");
+    if (role !== "admin") {
+      if (remoteState.activeMatchId && scheduleIds.includes(remoteState.activeMatchId)) return remoteState.activeMatchId;
+      return scheduleIds[0] || null;
+    }
+    if (selectedMatchId && scheduleIds.includes(selectedMatchId)) return selectedMatchId;
+    if (remoteState.activeMatchId && scheduleIds.includes(remoteState.activeMatchId)) return remoteState.activeMatchId;
+    return scheduleIds[0] || null;
+  }
 
   function displayName(canonicalTeam) {
     return (remoteState.teamNames && remoteState.teamNames[canonicalTeam]) || canonicalTeam;
@@ -1675,8 +1710,6 @@
     });
 
     const activeData = activeLeagueId ? allLeagues[activeLeagueId] : null;
-    const rs = (activeData && activeData.rallyState) || {};
-    const rsDefaults = defaultRallyState();
     remoteState = activeData
       ? {
           name: activeData.name || activeLeagueId,
@@ -1686,14 +1719,12 @@
           teamCaptains: activeData.teamCaptains || {},
           teamNames: activeData.teamNames || {},
           schedule: activeData.schedule || {},
-          rallyState: {
-            teamA: rs.teamA || rsDefaults.teamA,
-            teamB: rs.teamB || rsDefaults.teamB,
-            sets: rs.sets || rsDefaults.sets,
-            log: rs.log || []
-          }
+          rallyStates: activeData.rallyStates || {},
+          activeMatchId: activeData.activeMatchId || null
         }
       : defaultRemoteState();
+
+    selectedMatchId = resolveSelectedMatchId(getSortedScheduleIds());
 
     renderRosters();
     renderAll();
@@ -2149,11 +2180,68 @@
   renderRosters();
 
   function loadRallyState() {
-    return remoteState.rallyState;
+    const schedule = remoteState.schedule || {};
+    const match = selectedMatchId ? schedule[selectedMatchId] : null;
+    const saved = (selectedMatchId && remoteState.rallyStates && remoteState.rallyStates[selectedMatchId]) || {};
+    const defaults = defaultRallyState();
+    return {
+      teamA: (match && match.teamA) || "Crossfires",
+      teamB: (match && match.teamB) || "Invincibles",
+      sets: saved.sets || defaults.sets,
+      log: saved.log || []
+    };
   }
 
   function saveRallyState(state) {
-    writeToLeague("rallyState", state);
+    if (!selectedMatchId) return;
+    writeToLeague("rallyStates/" + selectedMatchId, { sets: state.sets, log: state.log });
+  }
+
+  function cacheRallyState(state) {
+    if (!selectedMatchId) return;
+    remoteState.rallyStates = remoteState.rallyStates || {};
+    remoteState.rallyStates[selectedMatchId] = { sets: state.sets, log: state.log };
+  }
+
+  function renderMatchSelect() {
+    const matchSelect = document.getElementById("matchSelect");
+    if (!matchSelect) return;
+    const scheduleIds = getSortedScheduleIds();
+    const schedule = remoteState.schedule || {};
+
+    matchSelect.innerHTML = "";
+    if (!scheduleIds.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "No matches scheduled yet";
+      matchSelect.appendChild(option);
+      matchSelect.disabled = true;
+      return;
+    }
+    matchSelect.disabled = false;
+
+    scheduleIds.forEach((id, i) => {
+      const match = schedule[id];
+      const matchState = Object.assign({}, defaultRallyState(), remoteState.rallyStates && remoteState.rallyStates[id], {
+        teamA: match.teamA,
+        teamB: match.teamB
+      });
+      const winner = computeMatchWinner(matchState);
+      const isCompleted = winner !== "TBD";
+      const dateLabel = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
+
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = "Match " + (i + 1) + ": " + displayName(match.teamA) + " vs " + displayName(match.teamB) +
+        (isCompleted ? " — Completed" : " — " + dateLabel);
+      if (isCompleted) {
+        option.style.color = "green";
+        option.style.fontWeight = "bold";
+      }
+      matchSelect.appendChild(option);
+    });
+
+    matchSelect.value = selectedMatchId || "";
   }
 
   function recomputeSetScores(state, setIndex) {
@@ -2175,7 +2263,9 @@
   }
 
   function computeSetWinner(set, index) {
-    const threshold = index === 2 ? 15 : 25;
+    // League Match Format (CCVF Handbook 3.2): best of 3, every set played to
+    // 25 points, won by a minimum 2-point margin, no point cap.
+    const threshold = 25;
     if (set.a >= threshold && set.a - set.b >= 2) return "A";
     if (set.b >= threshold && set.b - set.a >= 2) return "B";
     return null;
@@ -2189,9 +2279,28 @@
       if (winner === "A") aWins++;
       if (winner === "B") bWins++;
     });
+    // CCVF Handbook 9.5: League/Group Stage match is won by the first team to win 2 sets.
     if (aWins >= 2) return state.teamA;
     if (bWins >= 2) return state.teamB;
     return "TBD";
+  }
+
+  function computeMatchPoints(state) {
+    // CCVF Handbook 3.4: 2-0 win = 3 MP (loser 0 MP); 2-1 win = 2 MP (loser 1 MP).
+    let aWins = 0;
+    let bWins = 0;
+    state.sets.forEach((set, i) => {
+      const winner = computeSetWinner(set, i);
+      if (winner === "A") aWins++;
+      if (winner === "B") bWins++;
+    });
+    if (aWins >= 2) {
+      return { [state.teamA]: bWins === 1 ? 2 : 3, [state.teamB]: bWins === 1 ? 1 : 0 };
+    }
+    if (bWins >= 2) {
+      return { [state.teamB]: aWins === 1 ? 2 : 3, [state.teamA]: aWins === 1 ? 1 : 0 };
+    }
+    return null;
   }
 
   function renderScoreboard(container, state) {
@@ -2326,7 +2435,7 @@
 
           editingRallyIndex = -1;
           saveRallyState(newState);
-          remoteState.rallyState = newState;
+          cacheRallyState(newState);
           renderAll();
         });
 
@@ -2407,7 +2516,7 @@
 
             editingRallyIndex = -1;
             saveRallyState(newState);
-            remoteState.rallyState = newState;
+            cacheRallyState(newState);
             renderAll();
           });
 
@@ -2442,12 +2551,18 @@
 
   function renderAll() {
     const state = loadRallyState();
+    renderMatchSelect();
     renderScoreboard(document.getElementById("setScoresAdmin"), state);
     renderScoreboard(document.getElementById("setScoresGuest"), state);
     renderRallyLog(state);
 
     const winner = computeMatchWinner(state);
-    const matchWinnerText = "Match Winner: " + (winner === "TBD" ? "TBD" : displayName(winner));
+    let matchWinnerText = "Match Winner: " + (winner === "TBD" ? "TBD" : displayName(winner));
+    if (winner !== "TBD") {
+      const mp = computeMatchPoints(state);
+      matchWinnerText += " (" + displayName(state.teamA) + " " + mp[state.teamA] + " MP – " +
+        displayName(state.teamB) + " " + mp[state.teamB] + " MP)";
+    }
     const mwAdmin = document.getElementById("matchWinnerAdmin");
     const mwGuest = document.getElementById("matchWinnerGuest");
     if (mwAdmin) mwAdmin.textContent = matchWinnerText;
@@ -2500,6 +2615,15 @@
     winningTeamSelectEl.addEventListener("change", populatePlayerOptions);
   }
 
+  const matchSelectEl = document.getElementById("matchSelect");
+  if (matchSelectEl) {
+    matchSelectEl.addEventListener("change", () => {
+      selectedMatchId = matchSelectEl.value || null;
+      writeToLeague("activeMatchId", selectedMatchId);
+      renderAll();
+    });
+  }
+
   const rallyForm = document.getElementById("rallyForm");
   if (rallyForm) {
     rallyForm.addEventListener("submit", (event) => {
@@ -2533,7 +2657,7 @@
       });
 
       saveRallyState(state);
-      remoteState.rallyState = state;
+      cacheRallyState(state);
       renderAll();
       rallyForm.reset();
       populatePlayerOptions();
@@ -2565,7 +2689,10 @@
   });
 
   document.getElementById("confirmResetYes").addEventListener("click", () => {
-    saveRallyState(defaultRallyState());
+    const resetState = defaultRallyState();
+    saveRallyState(resetState);
+    cacheRallyState(resetState);
+    renderAll();
     resetMatchConfirmModal.classList.remove("open");
   });
 
