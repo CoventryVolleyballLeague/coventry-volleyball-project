@@ -497,6 +497,56 @@
     visibility: visible;
   }
 
+  .feedback-admin-view {
+    display: none;
+  }
+
+  body.role-admin .feedback-guest-view {
+    display: none;
+  }
+
+  body.role-admin .feedback-admin-view {
+    display: block;
+  }
+
+  .feedback-item {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-left: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(28, 43, 74, 0.06);
+  }
+
+  .feedback-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .feedback-item-name {
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .feedback-item-date {
+    font-size: 0.8rem;
+    color: var(--muted, #6b7280);
+  }
+
+  .feedback-item-message {
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  .feedback-item-delete {
+    margin-top: 0.75rem;
+  }
+
   .schedule-row-actions button {
     font-family: inherit;
     font-size: 0.8rem;
@@ -690,7 +740,8 @@
   }
 
   .field input,
-  .field select {
+  .field select,
+  .field textarea {
     width: 100%;
     font-family: inherit;
     font-size: 0.95rem;
@@ -701,8 +752,13 @@
     color: var(--text);
   }
 
+  .field textarea {
+    resize: vertical;
+  }
+
   .field input:focus,
-  .field select:focus {
+  .field select:focus,
+  .field textarea:focus {
     outline: none;
     border-color: var(--gold);
   }
@@ -1011,18 +1067,23 @@
     <section class="page-section active" id="leagues">
       <h1>Leagues</h1>
 
+      <div class="field" style="max-width: 360px;">
+        <label for="leaguesTabSelect">Select a League</label>
+        <select id="leaguesTabSelect"></select>
+      </div>
+
       <div class="stat-cards">
         <div class="stat-card">
           <div class="stat-label">Current #1 Seed</div>
-          <div class="stat-value">TBD</div>
-          <div class="stat-sub">Updates once matches begin</div>
+          <div class="stat-value" id="statTopSeedValue">TBD</div>
+          <div class="stat-sub" id="statTopSeedSub">Updates once matches begin</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-label">Matches Complete</div>
-          <div class="stat-value">TBD</div>
-          <div class="stat-sub">Season not started yet</div>
-          <div class="progress-track"><div class="progress-fill" style="width: 0%;"></div></div>
+          <div class="stat-value" id="statMatchesCompleteValue">TBD</div>
+          <div class="stat-sub" id="statMatchesCompleteSub">Season not started yet</div>
+          <div class="progress-track"><div class="progress-fill" id="statMatchesCompleteFill" style="width: 0%;"></div></div>
         </div>
 
         <div class="stat-card">
@@ -1033,9 +1094,9 @@
 
         <div class="stat-card">
           <div class="stat-label">League Status</div>
-          <div class="stat-value">TBD</div>
-          <div class="stat-sub">Season not started yet</div>
-          <div class="progress-track"><div class="progress-fill" style="width: 0%;"></div></div>
+          <div class="stat-value" id="statLeagueStatusValue">TBD</div>
+          <div class="stat-sub" id="statLeagueStatusSub">Season not started yet</div>
+          <div class="progress-track"><div class="progress-fill" id="statLeagueStatusFill" style="width: 0%;"></div></div>
         </div>
       </div>
 
@@ -1058,28 +1119,7 @@
               <th>MP</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>&mdash;</td>
-              <td class="team-cell">Crossfires</td>
-              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
-            </tr>
-            <tr>
-              <td>&mdash;</td>
-              <td class="team-cell">Invincibles</td>
-              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
-            </tr>
-            <tr>
-              <td>&mdash;</td>
-              <td class="team-cell">Coventry Sixers</td>
-              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
-            </tr>
-            <tr>
-              <td>&mdash;</td>
-              <td class="team-cell">Coventry Chasers</td>
-              <td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>
-            </tr>
-          </tbody>
+          <tbody id="leagueStandingsBody"></tbody>
         </table>
       </div>
 
@@ -1283,8 +1323,31 @@
 
     <section class="page-section" id="feedback">
       <h1>Feedback</h1>
-      <div class="dashboard">
-        Feedback content coming soon
+
+      <div class="feedback-guest-view">
+        <p class="section-note">Have a suggestion, question, or issue? Let us know below.</p>
+        <form id="feedbackForm" class="rally-form-card" style="max-width: 480px;">
+          <div class="field">
+            <label for="feedbackNameInput">Name</label>
+            <input type="text" id="feedbackNameInput" placeholder="Your name" required>
+          </div>
+          <div class="field">
+            <label for="feedbackMessageInput">Feedback</label>
+            <textarea id="feedbackMessageInput" rows="5" placeholder="Share your feedback&hellip;" required></textarea>
+          </div>
+          <div class="rally-form-actions">
+            <button type="submit" class="btn-save-rally">Submit</button>
+            <button type="button" class="btn-clear-rally" id="feedbackCancelBtn">Cancel</button>
+          </div>
+          <p class="section-note" id="feedbackThankYou" style="display: none; color: green; margin-top: 0.75rem; margin-bottom: 0;">
+            Thank you for your feedback!
+          </p>
+        </form>
+      </div>
+
+      <div class="feedback-admin-view">
+        <p class="section-note">Feedback submitted by guests appears here, most recent first.</p>
+        <div id="feedbackInboxList"></div>
       </div>
     </section>
 
@@ -1652,6 +1715,17 @@
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
   let selectedMatchId = null;
+  let leaguesTabLeagueId = null;
+
+  function getSortedLeagueIds() {
+    return Object.keys(allLeagues).sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0));
+  }
+
+  function resolveLeaguesTabLeagueId(leagueIds) {
+    if (leaguesTabLeagueId && leagueIds.includes(leaguesTabLeagueId)) return leaguesTabLeagueId;
+    if (activeLeagueId && leagueIds.includes(activeLeagueId)) return activeLeagueId;
+    return leagueIds[0] || null;
+  }
 
   function getSortedScheduleIds() {
     const schedule = remoteState.schedule || {};
@@ -1659,14 +1733,9 @@
   }
 
   function resolveSelectedMatchId(scheduleIds) {
-    // Guests always follow whichever match the admin has made active so
-    // live scores stay in sync; the admin keeps their own dropdown pick.
-    const role = sessionStorage.getItem("role");
-    if (role !== "admin") {
-      if (remoteState.activeMatchId && scheduleIds.includes(remoteState.activeMatchId)) return remoteState.activeMatchId;
-      return scheduleIds[0] || null;
-    }
-    if (selectedMatchId && scheduleIds.includes(selectedMatchId)) return selectedMatchId;
+    // Every viewer (admin or guest, on any device) always follows the
+    // league's shared activeMatchId so Live Scores never drifts out of
+    // sync with whichever match is actually being updated.
     if (remoteState.activeMatchId && scheduleIds.includes(remoteState.activeMatchId)) return remoteState.activeMatchId;
     return scheduleIds[0] || null;
   }
@@ -1733,7 +1802,92 @@
     renderStorageEstimate(data);
     renderScheduleMatchList();
     renderPublicSchedule();
+    renderLeaguesTab();
   });
+
+  const leaguesTabSelectEl = document.getElementById("leaguesTabSelect");
+  if (leaguesTabSelectEl) {
+    leaguesTabSelectEl.addEventListener("change", () => {
+      leaguesTabLeagueId = leaguesTabSelectEl.value || null;
+      renderLeaguesTab();
+    });
+  }
+
+  function renderFeedbackInbox(feedbackData) {
+    const container = document.getElementById("feedbackInboxList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const ids = Object.keys(feedbackData || {});
+    if (!ids.length) {
+      container.innerHTML = '<p class="section-note">No feedback submitted yet.</p>';
+      return;
+    }
+
+    ids
+      .sort((a, b) => (feedbackData[b].submittedAt || 0) - (feedbackData[a].submittedAt || 0))
+      .forEach((id) => {
+        const entry = feedbackData[id];
+        const item = document.createElement("div");
+        item.className = "feedback-item";
+
+        const dateLabel = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString() : "";
+
+        item.innerHTML =
+          '<div class="feedback-item-header">' +
+            '<span class="feedback-item-name">' + escapeHtml(entry.name || "Anonymous") + "</span>" +
+            '<span class="feedback-item-date">' + escapeHtml(dateLabel) + "</span>" +
+          "</div>" +
+          '<div class="feedback-item-message">' + escapeHtml(entry.message || "") + "</div>";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "table-action-btn remove-btn feedback-item-delete";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", () => {
+          remove(ref(db, "feedback/" + id));
+        });
+        item.appendChild(deleteBtn);
+
+        container.appendChild(item);
+      });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  onValue(ref(db, "feedback"), (snapshot) => {
+    renderFeedbackInbox(snapshot.val() || {});
+  });
+
+  const feedbackForm = document.getElementById("feedbackForm");
+  if (feedbackForm) {
+    feedbackForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = document.getElementById("feedbackNameInput").value.trim();
+      const message = document.getElementById("feedbackMessageInput").value.trim();
+      if (!name || !message) return;
+
+      set(ref(db, "feedback/fb" + Date.now()), {
+        name,
+        message,
+        submittedAt: Date.now()
+      });
+
+      feedbackForm.reset();
+      const thankYou = document.getElementById("feedbackThankYou");
+      thankYou.style.display = "block";
+      setTimeout(() => { thankYou.style.display = "none"; }, 4000);
+    });
+
+    document.getElementById("feedbackCancelBtn").addEventListener("click", () => {
+      feedbackForm.reset();
+      document.getElementById("feedbackThankYou").style.display = "none";
+    });
+  }
 
   const role = sessionStorage.getItem("role");
   if (role !== "admin" && role !== "guest") {
@@ -2303,6 +2457,100 @@
     return null;
   }
 
+  function computeSetRatio(setsWon, setsLost) {
+    // CCVF Handbook 3.5: SR = SW / SL. If SL is zero, the undefeated ratio
+    // ranks above every finite ratio rather than being treated as infinite/NaN.
+    if (setsLost === 0) return setsWon > 0 ? Infinity : 0;
+    return setsWon / setsLost;
+  }
+
+  function computePointRatio(pointsFor, pointsAgainst) {
+    if (pointsAgainst === 0) return pointsFor > 0 ? Infinity : 0;
+    return pointsFor / pointsAgainst;
+  }
+
+  function computeLeagueStandings(leagueData) {
+    const schedule = (leagueData && leagueData.schedule) || {};
+    const rallyStates = (leagueData && leagueData.rallyStates) || {};
+    const defaults = defaultRallyState();
+
+    const stats = {};
+    BASE_TEAMS.forEach((team) => {
+      stats[team] = { team, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, pointsFor: 0, pointsAgainst: 0, matchPoints: 0 };
+    });
+
+    const scheduleIds = Object.keys(schedule);
+    let completedMatches = 0;
+
+    scheduleIds.forEach((matchId) => {
+      const match = schedule[matchId];
+      const a = stats[match.teamA];
+      const b = stats[match.teamB];
+      if (!a || !b) return;
+
+      const saved = rallyStates[matchId] || {};
+      const state = {
+        teamA: match.teamA,
+        teamB: match.teamB,
+        sets: saved.sets || defaults.sets,
+        log: saved.log || []
+      };
+
+      const winner = computeMatchWinner(state);
+      if (winner === "TBD") return;
+      completedMatches++;
+
+      const mp = computeMatchPoints(state);
+      let aSetsWon = 0;
+      let bSetsWon = 0;
+      let aPoints = 0;
+      let bPoints = 0;
+      state.sets.forEach((set, i) => {
+        const setWinner = computeSetWinner(set, i);
+        if (setWinner === "A") aSetsWon++;
+        if (setWinner === "B") bSetsWon++;
+        aPoints += set.a;
+        bPoints += set.b;
+      });
+
+      a.played++;
+      b.played++;
+      a.setsWon += aSetsWon;
+      a.setsLost += bSetsWon;
+      b.setsWon += bSetsWon;
+      b.setsLost += aSetsWon;
+      a.pointsFor += aPoints;
+      a.pointsAgainst += bPoints;
+      b.pointsFor += bPoints;
+      b.pointsAgainst += aPoints;
+      a.matchPoints += mp[match.teamA];
+      b.matchPoints += mp[match.teamB];
+      if (winner === match.teamA) {
+        a.wins++;
+        b.losses++;
+      } else {
+        b.wins++;
+        a.losses++;
+      }
+    });
+
+    const standings = Object.values(stats).map((s) => Object.assign({}, s, {
+      setRatio: computeSetRatio(s.setsWon, s.setsLost),
+      pointRatio: computePointRatio(s.pointsFor, s.pointsAgainst)
+    }));
+
+    // CCVF Handbook 3.6 seeding order: Match Points -> Set Ratio -> Point Ratio
+    // -> Head-to-Head -> Coin Toss (the last two require manual review).
+    standings.sort((x, y) => {
+      if (y.matchPoints !== x.matchPoints) return y.matchPoints - x.matchPoints;
+      if (y.setRatio !== x.setRatio) return y.setRatio - x.setRatio;
+      if (y.pointRatio !== x.pointRatio) return y.pointRatio - x.pointRatio;
+      return 0;
+    });
+
+    return { standings, totalMatches: scheduleIds.length, completedMatches };
+  }
+
   function renderScoreboard(container, state) {
     if (!container) return;
     container.innerHTML = "";
@@ -2659,14 +2907,24 @@
       saveRallyState(state);
       cacheRallyState(state);
       renderAll();
-      rallyForm.reset();
-      populatePlayerOptions();
+      resetRallyEntryFields();
     });
 
     document.getElementById("clearRallyBtn").addEventListener("click", () => {
-      rallyForm.reset();
-      populatePlayerOptions();
+      resetRallyEntryFields();
     });
+  }
+
+  function resetRallyEntryFields() {
+    // Only clear the per-rally fields. matchSelect/setSelect/winningTeamSelect
+    // are populated dynamically (no HTML "selected" option), so a plain
+    // rallyForm.reset() would snap them back to whichever option happens to
+    // render first instead of leaving the admin on the match/set/team they
+    // were actively scoring.
+    document.getElementById("playerInput").value = "";
+    document.getElementById("pointTypeSelect").value = "Rally Point";
+    document.getElementById("notesInput").value = "";
+    populatePlayerOptions();
   }
 
   const resetMatchConfirmModal = document.getElementById("resetMatchConfirmModal");
@@ -2728,6 +2986,101 @@
     valueEl.textContent = formatBytes(remainingBytes) + " free";
     subEl.textContent = formatBytes(usedBytes) + " used of " + formatBytes(FREE_TIER_BYTES) + " (" + usedPercent.toFixed(4) + "% used)";
     fillEl.style.width = Math.min(Math.max(usedPercent, 0.5), 100) + "%";
+  }
+
+  function displayNameFor(leagueData, canonicalTeam) {
+    return (leagueData && leagueData.teamNames && leagueData.teamNames[canonicalTeam]) || canonicalTeam;
+  }
+
+  function renderLeaguesTab() {
+    const select = document.getElementById("leaguesTabSelect");
+    if (!select) return;
+
+    const leagueIds = getSortedLeagueIds();
+    select.innerHTML = "";
+    if (!leagueIds.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "No leagues yet";
+      select.appendChild(option);
+      select.disabled = true;
+    } else {
+      select.disabled = false;
+      leagueIds.forEach((id) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = allLeagues[id].name || id;
+        select.appendChild(option);
+      });
+    }
+
+    leaguesTabLeagueId = resolveLeaguesTabLeagueId(leagueIds);
+    select.value = leaguesTabLeagueId || "";
+
+    const leagueData = leaguesTabLeagueId ? allLeagues[leaguesTabLeagueId] : null;
+    const { standings, totalMatches, completedMatches } = computeLeagueStandings(leagueData);
+
+    const topSeedValueEl = document.getElementById("statTopSeedValue");
+    const topSeedSubEl = document.getElementById("statTopSeedSub");
+    const matchesValueEl = document.getElementById("statMatchesCompleteValue");
+    const matchesSubEl = document.getElementById("statMatchesCompleteSub");
+    const matchesFillEl = document.getElementById("statMatchesCompleteFill");
+    const statusValueEl = document.getElementById("statLeagueStatusValue");
+    const statusSubEl = document.getElementById("statLeagueStatusSub");
+    const statusFillEl = document.getElementById("statLeagueStatusFill");
+
+    const hasTopSeed = completedMatches > 0 && standings.length && standings[0].played > 0;
+    if (topSeedValueEl) topSeedValueEl.textContent = hasTopSeed ? displayNameFor(leagueData, standings[0].team) : "TBD";
+    if (topSeedSubEl) topSeedSubEl.textContent = hasTopSeed ? "Leads by Match Points" : "Updates once matches begin";
+
+    if (matchesValueEl) matchesValueEl.textContent = totalMatches ? completedMatches + " / " + totalMatches : "TBD";
+    if (matchesSubEl) matchesSubEl.textContent = totalMatches ? "matches played so far" : "No matches scheduled yet";
+    if (matchesFillEl) matchesFillEl.style.width = (totalMatches ? (completedMatches / totalMatches) * 100 : 0) + "%";
+
+    let statusText = "Season not started yet";
+    if (totalMatches === 0) {
+      statusText = "No matches scheduled yet";
+    } else if (completedMatches === totalMatches) {
+      statusText = "Season complete";
+    } else if (completedMatches > 0) {
+      statusText = "In progress";
+    }
+    if (statusValueEl) statusValueEl.textContent = statusText;
+    if (statusSubEl) statusSubEl.textContent = totalMatches ? completedMatches + " of " + totalMatches + " matches complete" : "Season not started yet";
+    if (statusFillEl) statusFillEl.style.width = (totalMatches ? (completedMatches / totalMatches) * 100 : 0) + "%";
+
+    const tbody = document.getElementById("leagueStandingsBody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      if (!leagueData) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 12;
+        td.textContent = "No league selected.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      } else {
+        standings.forEach((s, i) => {
+          const tr = document.createElement("tr");
+          const srText = s.setRatio === Infinity ? "∞" : s.setRatio.toFixed(2);
+          const prText = s.pointRatio === Infinity ? "∞" : s.pointRatio.toFixed(2);
+          tr.innerHTML =
+            "<td>" + (i + 1) + "</td>" +
+            '<td class="team-cell">' + escapeHtml(displayNameFor(leagueData, s.team)) + "</td>" +
+            "<td>" + s.played + "</td>" +
+            "<td>" + s.wins + "</td>" +
+            "<td>" + s.losses + "</td>" +
+            "<td>" + s.setsWon + "</td>" +
+            "<td>" + s.setsLost + "</td>" +
+            "<td>" + srText + "</td>" +
+            "<td>" + s.pointsFor + "</td>" +
+            "<td>" + s.pointsAgainst + "</td>" +
+            "<td>" + prText + "</td>" +
+            "<td>" + s.matchPoints + "</td>";
+          tbody.appendChild(tr);
+        });
+      }
+    }
   }
 
   function renderPublicSchedule() {
