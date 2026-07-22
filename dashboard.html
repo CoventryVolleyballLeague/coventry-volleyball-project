@@ -165,6 +165,7 @@
     font-family: "Playpen Sans", cursive;
     font-style: italic;
     font-weight: 700;
+    margin-bottom: 0.5rem;
   }
 
   .about-content {
@@ -396,6 +397,123 @@
     margin-top: 0.2rem;
   }
 
+  .schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .schedule-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border: 2px solid #d8d0bf;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+
+  .schedule-item.editing {
+    border-color: var(--navy);
+    background: var(--cream);
+    font-weight: 600;
+  }
+
+  .schedule-item-text {
+    flex: 1;
+  }
+
+  .schedule-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .schedule-item-actions button {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    background: transparent;
+    color: var(--navy);
+  }
+
+  .schedule-item-actions button.remove-btn {
+    border-color: #b3261e;
+    color: #b3261e;
+  }
+
+  .field-error {
+    color: #b3261e;
+    font-size: 0.85rem;
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-top: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .schedule-row-teams,
+  .schedule-row-date {
+    flex: 1;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .schedule-row-teams {
+    text-align: left;
+  }
+
+  .schedule-row-date {
+    text-align: center;
+  }
+
+  .schedule-row-actions {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    visibility: hidden;
+  }
+
+  body.role-admin .schedule-row-actions {
+    visibility: visible;
+  }
+
+  .schedule-row-actions button {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    background: transparent;
+    color: var(--navy);
+  }
+
+  .schedule-row-actions button.remove-btn {
+    border-color: #b3261e;
+    color: #b3261e;
+  }
+
   .stat-card {
     background: white;
     border: 1px solid #e5e0d5;
@@ -598,7 +716,7 @@
 
   .set-scores {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
     gap: 0.9rem;
     flex: 1;
   }
@@ -676,12 +794,6 @@
   @media (max-width: 900px) {
     .rally-layout {
       flex-direction: column;
-    }
-  }
-
-  @media (max-width: 560px) {
-    .set-scores {
-      grid-template-columns: 1fr;
     }
   }
 
@@ -825,8 +937,8 @@
 
 <div class="layout">
   <div class="sidebar">
-    <a class="nav-link active live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
-    <a class="nav-link" href="#leagues" data-section="leagues">Leagues</a>
+    <a class="nav-link active" href="#leagues" data-section="leagues">Leagues</a>
+    <a class="nav-link live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
     <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
@@ -861,7 +973,7 @@
       <img src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night, enlarged">
     </div>
 
-    <section class="page-section" id="leagues">
+    <section class="page-section active" id="leagues">
       <h1>Leagues</h1>
 
       <div class="stat-cards">
@@ -990,15 +1102,12 @@
 
             <div class="field">
               <label for="winningTeamSelect">Winning Team</label>
-              <select id="winningTeamSelect">
-                <option>Crossfires</option>
-                <option>Invincibles</option>
-              </select>
+              <select id="winningTeamSelect"></select>
             </div>
 
             <div class="field">
               <label for="playerInput">Player</label>
-              <input type="text" id="playerInput" placeholder="e.g. Murali (C)">
+              <select id="playerInput"></select>
             </div>
 
             <div class="field">
@@ -1051,7 +1160,7 @@
       </div>
     </section>
 
-    <section class="page-section active" id="live-scores">
+    <section class="page-section" id="live-scores">
       <h1>Current Match Live Scores</h1>
       <div class="scoreboard-card">
         <div class="match-winner-banner" id="matchWinnerGuest">Match Winner: TBD</div>
@@ -1147,9 +1256,7 @@
 
     <section class="page-section" id="schedule">
       <h1>Schedule</h1>
-      <div class="dashboard">
-        Schedule content coming soon
-      </div>
+      <div class="schedule-list" id="publicScheduleList"></div>
     </section>
 
     <section class="page-section" id="feedback">
@@ -1219,17 +1326,11 @@
 
       <div class="field">
         <label for="newPlayerTeam">Select Team Name</label>
-        <select id="newPlayerTeam">
-          <option value="">Choose a team&hellip;</option>
-          <option>Invincibles</option>
-          <option>Coventry Chasers</option>
-          <option>Coventry Sixers</option>
-          <option>Crossfires</option>
-          <option value="Not Yet Decided">Not Yet Decided</option>
-        </select>
+        <select id="newPlayerTeam"></select>
       </div>
 
       <div class="modal-actions">
+        <button class="btn-clear-rally" id="arpAddBack">Back</button>
         <button class="btn-save-rally" id="savePlayerBtn">Save</button>
         <button class="btn-clear-rally" id="cancelPlayerBtn">Cancel</button>
       </div>
@@ -1251,6 +1352,7 @@
       </div>
 
       <div class="modal-actions">
+        <button class="btn-clear-rally" id="arpRemoveBack">Back</button>
         <button class="btn-remove-player" id="removePlayerBtn">Remove</button>
         <button class="btn-clear-rally" id="cancelRemoveBtn">Cancel</button>
       </div>
@@ -1297,6 +1399,122 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="changeTeamNameModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Change Team Name</h2>
+
+    <div class="field">
+      <label for="renameTeamSelect">Select Team Name</label>
+      <select id="renameTeamSelect"></select>
+    </div>
+
+    <div class="field">
+      <label for="renameTeamInput">Enter New Team Name</label>
+      <input type="text" id="renameTeamInput" placeholder="e.g. Coventry Thunder">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveTeamNameBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelTeamNameBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal-box" style="max-width: 560px;">
+
+    <div class="wizard-screen" id="scheduleLeagueScreen">
+      <h2 class="modal-title">Create a Schedule for a League</h2>
+
+      <div class="field">
+        <label for="scheduleLeagueSelect">Select a League</label>
+        <select id="scheduleLeagueSelect"></select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="scheduleGoToMatchBtn">Create a Schedule</button>
+        <button class="btn-clear-rally" id="scheduleCancelBtn1">Cancel</button>
+      </div>
+    </div>
+
+    <div class="wizard-screen" id="scheduleMatchScreen" style="display: none;">
+      <h2 class="modal-title" id="scheduleMatchTitle">Schedule Matches</h2>
+
+      <div class="field">
+        <label for="scheduleTeamASelect">Select Team A</label>
+        <select id="scheduleTeamASelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="scheduleTeamBSelect">Select Team B</label>
+        <select id="scheduleTeamBSelect"></select>
+      </div>
+
+      <p class="field-error" id="scheduleTeamError" style="display: none;">Team A and Team B can't be same. Please select different teams.</p>
+
+      <div class="field">
+        <label for="scheduleDateInput">Match Date</label>
+        <input type="date" id="scheduleDateInput">
+      </div>
+
+      <div class="field">
+        <label for="scheduleTimeInput">Match Time</label>
+        <input type="time" id="scheduleTimeInput">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="scheduleSaveMatchBtn" style="width: 100%;">Save</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-clear-rally" id="scheduleAddAnotherBtn" style="width: 100%;">Add Schedule for another match</button>
+      </div>
+
+      <h2 class="section-heading">Scheduled Matches</h2>
+      <div class="schedule-list" id="scheduleMatchList"></div>
+
+      <div class="modal-actions" style="margin-top: 1rem; border-top: 1px solid #e5e0d5; padding-top: 1rem;">
+        <button class="btn-clear-rally" id="scheduleBackBtn">Back</button>
+        <button class="btn-save-rally" id="scheduleFinishBtn">Save</button>
+        <button class="btn-clear-rally" id="scheduleFinishCancelBtn">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="editScheduleMatchModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Edit Match Date &amp; Time</h2>
+
+    <div class="field">
+      <label for="editScheduleDateInput">Match Date</label>
+      <input type="date" id="editScheduleDateInput">
+    </div>
+
+    <div class="field">
+      <label for="editScheduleTimeInput">Match Time</label>
+      <input type="time" id="editScheduleTimeInput">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveEditScheduleBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelEditScheduleBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="removeScheduleMatchConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Remove Match</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;">Do you really want to remove this match from the schedule?</p>
+    <div class="modal-actions">
+      <button class="btn-remove-player" id="confirmRemoveScheduleYes">Yes</button>
+      <button class="btn-clear-rally" id="confirmRemoveScheduleNo">No</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="deleteLeagueConfirmModal">
   <div class="modal-box">
     <h2 class="modal-title">Delete League</h2>
@@ -1326,13 +1544,7 @@
 
     <div class="field">
       <label for="tradeNewTeamSelect">Select New Team</label>
-      <select id="tradeNewTeamSelect">
-        <option value="">Choose a team&hellip;</option>
-        <option>Invincibles</option>
-        <option>Coventry Chasers</option>
-        <option>Coventry Sixers</option>
-        <option>Crossfires</option>
-      </select>
+      <select id="tradeNewTeamSelect"></select>
     </div>
 
     <div class="modal-actions">
@@ -1348,13 +1560,7 @@
 
     <div class="field">
       <label for="captainTeamSelect">Select Team Name</label>
-      <select id="captainTeamSelect">
-        <option value="">Choose a team&hellip;</option>
-        <option>Invincibles</option>
-        <option>Coventry Chasers</option>
-        <option>Coventry Sixers</option>
-        <option>Crossfires</option>
-      </select>
+      <select id="captainTeamSelect"></select>
     </div>
 
     <div class="field">
@@ -1413,13 +1619,37 @@
       removedPlayers: [],
       teamOverrides: {},
       teamCaptains: {},
+      teamNames: {},
+      schedule: {},
       rallyState: defaultRallyState()
     };
   }
 
+  const BASE_TEAMS = ["Invincibles", "Coventry Chasers", "Coventry Sixers", "Crossfires"];
+
   let allLeagues = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
+
+  function displayName(canonicalTeam) {
+    return (remoteState.teamNames && remoteState.teamNames[canonicalTeam]) || canonicalTeam;
+  }
+
+  function populateTeamSelect(selectEl, includeNotYetDecided) {
+    selectEl.innerHTML = '<option value="">Choose a team&hellip;</option>';
+    BASE_TEAMS.forEach((team) => {
+      const option = document.createElement("option");
+      option.value = team;
+      option.textContent = displayName(team);
+      selectEl.appendChild(option);
+    });
+    if (includeNotYetDecided) {
+      const option = document.createElement("option");
+      option.value = "Not Yet Decided";
+      option.textContent = "Not Yet Decided";
+      selectEl.appendChild(option);
+    }
+  }
 
   function writeToLeague(path, value) {
     if (!activeLeagueId) return;
@@ -1449,6 +1679,8 @@
           removedPlayers: activeData.removedPlayers || [],
           teamOverrides: activeData.teamOverrides || {},
           teamCaptains: activeData.teamCaptains || {},
+          teamNames: activeData.teamNames || {},
+          schedule: activeData.schedule || {},
           rallyState: {
             teamA: rs.teamA || rsDefaults.teamA,
             teamB: rs.teamB || rsDefaults.teamB,
@@ -1463,6 +1695,8 @@
     renderHistoryList();
     renderActiveLeagueLabel();
     renderStorageEstimate(data);
+    renderScheduleMatchList();
+    renderPublicSchedule();
   });
 
   const role = sessionStorage.getItem("role");
@@ -1508,7 +1742,7 @@
   });
 
   const adminOnlySections = ["settings", "score-updates", "history"];
-  const initialSection = location.hash.replace("#", "") || "live-scores";
+  const initialSection = location.hash.replace("#", "") || "leagues";
   if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
   }
@@ -1539,6 +1773,10 @@
       document.getElementById("resetMatchConfirmModal").classList.remove("open");
       document.getElementById("createLeagueModal").classList.remove("open");
       document.getElementById("deleteLeagueConfirmModal").classList.remove("open");
+      document.getElementById("changeTeamNameModal").classList.remove("open");
+      document.getElementById("scheduleModal").classList.remove("open");
+      document.getElementById("editScheduleMatchModal").classList.remove("open");
+      document.getElementById("removeScheduleMatchConfirmModal").classList.remove("open");
     }
   });
 
@@ -1581,8 +1819,9 @@
     const teamOverrides = getTeamOverrides();
     const captains = getEffectiveCaptains();
     const removed = getRemovedPlayers();
-    const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team }));
-    return basePlayers
+    const base = basePlayers.map((p) => ({ name: p.name, team: p.team, isOriginal: true }));
+    const added = getAddedPlayers().map((p) => ({ name: p.name, team: p.team, isOriginal: false }));
+    return base
       .concat(added)
       .filter((p) => !removed.includes(p.name))
       .map((p) => {
@@ -1590,7 +1829,8 @@
         return {
           name: p.name,
           team,
-          isCaptain: captains[team] === p.name
+          isCaptain: captains[team] === p.name,
+          isNative: p.isOriginal && team === p.team
         };
       });
   }
@@ -1606,6 +1846,23 @@
     players.forEach((p) => {
       if (!grouped[p.team]) grouped[p.team] = [];
       grouped[p.team].push(p);
+    });
+
+    Object.keys(grouped).forEach((team) => {
+      grouped[team].sort((a, b) => {
+        const rank = (p) => (p.isCaptain ? 0 : p.isNative ? 1 : 2);
+        return rank(a) - rank(b);
+      });
+    });
+
+    document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
+      const team = ul.dataset.team;
+      const count = (grouped[team] || []).length;
+      const heading = ul.parentElement.querySelector("h2");
+      if (heading) {
+        const label = BASE_TEAMS.includes(team) ? displayName(team) : "Unassigned Players";
+        heading.textContent = label + " (" + count + ")";
+      }
     });
 
     Object.keys(grouped).forEach((team) => {
@@ -1671,6 +1928,7 @@
   document.getElementById("arpChoiceCancel").addEventListener("click", closeAddPlayerModal);
 
   document.getElementById("arpChooseAdd").addEventListener("click", () => {
+    populateTeamSelect(newPlayerTeam, true);
     showArpScreen("arpAddScreen");
   });
 
@@ -1685,6 +1943,18 @@
       removePlayerSelect.appendChild(option);
     });
     showArpScreen("arpRemoveScreen");
+  });
+
+  document.getElementById("arpAddBack").addEventListener("click", () => {
+    newPlayerName.value = "";
+    newPlayerTeam.value = "";
+    showArpScreen("arpChoiceScreen");
+  });
+
+  document.getElementById("arpRemoveBack").addEventListener("click", () => {
+    removePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
+    removePlayerTeam.textContent = "—";
+    showArpScreen("arpChoiceScreen");
   });
 
   addRemovePlayerModal.addEventListener("click", (event) => {
@@ -1732,8 +2002,9 @@
   });
 
   document.getElementById("confirmRemoveYes").addEventListener("click", () => {
-    const removed = getRemovedPlayers().concat([pendingRemovalName]);
-    writeToLeague("removedPlayers", removed);
+    const overrides = Object.assign({}, getTeamOverrides());
+    overrides[pendingRemovalName] = "Not Yet Decided";
+    writeToLeague("teamOverrides", overrides);
 
     renderRosters();
     closeRemoveConfirmModal();
@@ -1774,13 +2045,14 @@
   if (tradePlayerBtn) {
     tradePlayerBtn.addEventListener("click", () => {
       populateTradePlayerOptions();
+      populateTeamSelect(tradeNewTeamSelect, false);
       tradePlayerModal.classList.add("open");
     });
   }
 
   tradePlayerSelect.addEventListener("change", () => {
     const selected = tradePlayerSelect.selectedOptions[0];
-    tradeCurrentTeam.textContent = selected && selected.value ? selected.dataset.team : "—";
+    tradeCurrentTeam.textContent = selected && selected.value ? displayName(selected.dataset.team) : "—";
   });
 
   document.getElementById("cancelTradeBtn").addEventListener("click", closeTradePlayerModal);
@@ -1838,6 +2110,7 @@
   const changeCaptainBtn = document.getElementById("changeCaptainBtn");
   if (changeCaptainBtn) {
     changeCaptainBtn.addEventListener("click", () => {
+      populateTeamSelect(captainTeamSelect, false);
       changeCaptainModal.classList.add("open");
     });
   }
@@ -1903,15 +2176,15 @@
     container.innerHTML = "";
     state.sets.forEach((set, i) => {
       const winner = computeSetWinner(set, i);
-      const winnerLabel = winner === "A" ? state.teamA : winner === "B" ? state.teamB : "TBD";
+      const winnerLabel = winner === "A" ? displayName(state.teamA) : winner === "B" ? displayName(state.teamB) : "TBD";
       const card = document.createElement("div");
       card.className = "set-card";
       card.innerHTML =
         '<div class="set-card-title">Set ' + (i + 1) + '</div>' +
         '<div class="set-score-row">' +
-          '<div class="set-team"><div class="set-team-name">' + state.teamA + '</div><div class="set-team-score">' + set.a + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + displayName(state.teamA) + '</div><div class="set-team-score">' + set.a + '</div></div>' +
           '<div class="set-vs">vs</div>' +
-          '<div class="set-team"><div class="set-team-name">' + state.teamB + '</div><div class="set-team-score">' + set.b + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + displayName(state.teamB) + '</div><div class="set-team-score">' + set.b + '</div></div>' +
         '</div>' +
         '<div class="set-card-footer">' +
           '<span>' + set.rallies + ' rallies</span>' +
@@ -1928,7 +2201,7 @@
       const tr = document.createElement("tr");
       tr.innerHTML =
         '<td>' + entry.rallyNo + '</td>' +
-        '<td class="team-cell">' + entry.winningTeam + '</td>' +
+        '<td class="team-cell">' + displayName(entry.winningTeam) + '</td>' +
         '<td>' + (entry.player || "&mdash;") + '</td>' +
         '<td>' + entry.pointType + '</td>' +
         '<td>' + entry.scoreA + '-' + entry.scoreB + '</td>' +
@@ -1948,11 +2221,58 @@
     renderScoreboard(document.getElementById("setScoresGuest"), state);
     renderRallyLog(state);
 
-    const matchWinnerText = "Match Winner: " + computeMatchWinner(state);
+    const winner = computeMatchWinner(state);
+    const matchWinnerText = "Match Winner: " + (winner === "TBD" ? "TBD" : displayName(winner));
     const mwAdmin = document.getElementById("matchWinnerAdmin");
     const mwGuest = document.getElementById("matchWinnerGuest");
     if (mwAdmin) mwAdmin.textContent = matchWinnerText;
     if (mwGuest) mwGuest.textContent = matchWinnerText;
+
+    const winningTeamSelect = document.getElementById("winningTeamSelect");
+    if (winningTeamSelect) {
+      const currentValue = winningTeamSelect.value;
+      winningTeamSelect.innerHTML = "";
+      [state.teamA, state.teamB].forEach((team) => {
+        const option = document.createElement("option");
+        option.value = team;
+        option.textContent = displayName(team);
+        winningTeamSelect.appendChild(option);
+      });
+      if ([state.teamA, state.teamB].includes(currentValue)) {
+        winningTeamSelect.value = currentValue;
+      }
+    }
+
+    populatePlayerOptions();
+  }
+
+  function populatePlayerOptions() {
+    const playerSelect = document.getElementById("playerInput");
+    const winningTeamSelect = document.getElementById("winningTeamSelect");
+    if (!playerSelect || !winningTeamSelect) return;
+
+    const team = winningTeamSelect.value;
+    const currentValue = playerSelect.value;
+    playerSelect.innerHTML = '<option value="">No specific player</option>';
+
+    getEffectivePlayers()
+      .filter((p) => p.team === team)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        const option = document.createElement("option");
+        option.value = p.name;
+        option.textContent = p.isCaptain ? p.name + " (C)" : p.name;
+        playerSelect.appendChild(option);
+      });
+
+    if (Array.from(playerSelect.options).some((o) => o.value === currentValue)) {
+      playerSelect.value = currentValue;
+    }
+  }
+
+  const winningTeamSelectEl = document.getElementById("winningTeamSelect");
+  if (winningTeamSelectEl) {
+    winningTeamSelectEl.addEventListener("change", populatePlayerOptions);
   }
 
   const rallyForm = document.getElementById("rallyForm");
@@ -1985,12 +2305,15 @@
       });
 
       saveRallyState(state);
+      remoteState.rallyState = state;
       renderAll();
       rallyForm.reset();
+      populatePlayerOptions();
     });
 
     document.getElementById("clearRallyBtn").addEventListener("click", () => {
       rallyForm.reset();
+      populatePlayerOptions();
     });
   }
 
@@ -2050,6 +2373,65 @@
     valueEl.textContent = formatBytes(remainingBytes) + " free";
     subEl.textContent = formatBytes(usedBytes) + " used of " + formatBytes(FREE_TIER_BYTES) + " (" + usedPercent.toFixed(4) + "% used)";
     fillEl.style.width = Math.min(Math.max(usedPercent, 0.5), 100) + "%";
+  }
+
+  function renderPublicSchedule() {
+    const container = document.getElementById("publicScheduleList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const schedule = remoteState.schedule || {};
+    const ids = Object.keys(schedule);
+
+    if (!ids.length) {
+      container.innerHTML = '<p class="section-note">No matches scheduled yet.</p>';
+      return;
+    }
+
+    ids
+      .sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""))
+      .forEach((id) => {
+        const match = schedule[id];
+        const row = document.createElement("div");
+        row.className = "schedule-row";
+
+        const teams = document.createElement("div");
+        teams.className = "schedule-row-teams";
+        teams.textContent = displayName(match.teamA) + " vs " + displayName(match.teamB);
+
+        const dateCol = document.createElement("div");
+        dateCol.className = "schedule-row-date";
+        dateCol.textContent = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
+
+        const actions = document.createElement("div");
+        actions.className = "schedule-row-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", () => {
+          pendingScheduleEditId = id;
+          editScheduleDateInput.value = match.date || "";
+          editScheduleTimeInput.value = match.time || "";
+          editScheduleMatchModal.classList.add("open");
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "remove-btn";
+        removeBtn.textContent = "Remove";
+        removeBtn.addEventListener("click", () => {
+          pendingScheduleRemoveId = id;
+          removeScheduleMatchConfirmModal.classList.add("open");
+        });
+
+        actions.appendChild(editBtn);
+        actions.appendChild(removeBtn);
+        row.appendChild(teams);
+        row.appendChild(dateCol);
+        row.appendChild(actions);
+        container.appendChild(row);
+      });
   }
 
   function renderHistoryList() {
@@ -2131,6 +2513,271 @@
     set(ref(db, "leagues/_active"), id);
 
     closeCreateLeagueModal();
+  });
+
+  const changeTeamNameModal = document.getElementById("changeTeamNameModal");
+  const renameTeamSelect = document.getElementById("renameTeamSelect");
+  const renameTeamInput = document.getElementById("renameTeamInput");
+
+  function closeChangeTeamNameModal() {
+    changeTeamNameModal.classList.remove("open");
+    renameTeamSelect.value = "";
+    renameTeamInput.value = "";
+  }
+
+  const changeTeamNameBtn = document.getElementById("changeTeamNameBtn");
+  if (changeTeamNameBtn) {
+    changeTeamNameBtn.addEventListener("click", () => {
+      populateTeamSelect(renameTeamSelect, false);
+      changeTeamNameModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelTeamNameBtn").addEventListener("click", closeChangeTeamNameModal);
+
+  changeTeamNameModal.addEventListener("click", (event) => {
+    if (event.target === changeTeamNameModal) closeChangeTeamNameModal();
+  });
+
+  document.getElementById("saveTeamNameBtn").addEventListener("click", () => {
+    const team = renameTeamSelect.value;
+    const newName = renameTeamInput.value.trim();
+    if (!team || !newName) return;
+
+    const teamNames = Object.assign({}, remoteState.teamNames);
+    teamNames[team] = newName;
+    writeToLeague("teamNames", teamNames);
+
+    closeChangeTeamNameModal();
+  });
+
+  const scheduleModal = document.getElementById("scheduleModal");
+  const scheduleScreens = scheduleModal.querySelectorAll(".wizard-screen");
+  const scheduleLeagueSelect = document.getElementById("scheduleLeagueSelect");
+  const scheduleTeamASelect = document.getElementById("scheduleTeamASelect");
+  const scheduleTeamBSelect = document.getElementById("scheduleTeamBSelect");
+  const scheduleDateInput = document.getElementById("scheduleDateInput");
+  const scheduleTimeInput = document.getElementById("scheduleTimeInput");
+  const scheduleTeamError = document.getElementById("scheduleTeamError");
+  const scheduleMatchList = document.getElementById("scheduleMatchList");
+  const scheduleMatchTitle = document.getElementById("scheduleMatchTitle");
+
+  let scheduleLeagueId = "";
+  let scheduleEditingMatchId = "";
+
+  function showScheduleScreen(screenId) {
+    scheduleScreens.forEach((screen) => {
+      screen.style.display = screen.id === screenId ? "block" : "none";
+    });
+  }
+
+  function formatTime12h(timeStr) {
+    if (!timeStr) return "";
+    const parts = timeStr.split(":");
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1];
+    const period = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return hours + ":" + minutes + " " + period;
+  }
+
+  function loadMatchIntoForm(match) {
+    scheduleTeamASelect.value = match.teamA;
+    scheduleTeamBSelect.value = match.teamB;
+    scheduleDateInput.value = match.date || "";
+    scheduleTimeInput.value = match.time || "";
+    scheduleTeamError.style.display = "none";
+  }
+
+  function renderScheduleMatchList() {
+    if (!scheduleMatchList) return;
+    scheduleMatchList.innerHTML = "";
+    if (!scheduleLeagueId) return;
+
+    const league = allLeagues[scheduleLeagueId];
+    const schedule = (league && league.schedule) || {};
+    const ids = Object.keys(schedule);
+
+    if (!ids.length) {
+      scheduleMatchList.innerHTML = '<p class="section-note">No matches scheduled yet.</p>';
+      return;
+    }
+
+    ids.forEach((id) => {
+      const match = schedule[id];
+      const row = document.createElement("div");
+      row.className = "schedule-item" + (id === scheduleEditingMatchId ? " editing" : "");
+
+      const text = document.createElement("div");
+      text.className = "schedule-item-text";
+      let label = displayName(match.teamA) + " vs " + displayName(match.teamB) + " — " + (match.date || "No date set");
+      if (match.time) label += " at " + formatTime12h(match.time);
+      text.textContent = label;
+
+      const actions = document.createElement("div");
+      actions.className = "schedule-item-actions";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => {
+        scheduleEditingMatchId = id;
+        loadMatchIntoForm(match);
+        renderScheduleMatchList();
+      });
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "remove-btn";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", () => {
+        remove(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + id));
+        if (scheduleEditingMatchId === id) {
+          resetScheduleForm();
+        }
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(removeBtn);
+      row.appendChild(text);
+      row.appendChild(actions);
+      scheduleMatchList.appendChild(row);
+    });
+  }
+
+  function resetScheduleForm() {
+    scheduleTeamASelect.value = "";
+    scheduleTeamBSelect.value = "";
+    scheduleDateInput.value = "";
+    scheduleTimeInput.value = "";
+    scheduleTeamError.style.display = "none";
+    scheduleEditingMatchId = "";
+    renderScheduleMatchList();
+  }
+
+  function closeScheduleModal() {
+    scheduleModal.classList.remove("open");
+    scheduleLeagueSelect.value = "";
+    scheduleLeagueId = "";
+    resetScheduleForm();
+    showScheduleScreen("scheduleLeagueScreen");
+  }
+
+  const createScheduleBtn = document.getElementById("createScheduleBtn");
+  if (createScheduleBtn) {
+    createScheduleBtn.addEventListener("click", () => {
+      scheduleLeagueSelect.innerHTML = '<option value="">Choose a league&hellip;</option>';
+      Object.keys(allLeagues).forEach((id) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = allLeagues[id].name || id;
+        scheduleLeagueSelect.appendChild(option);
+      });
+      scheduleModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("scheduleCancelBtn1").addEventListener("click", closeScheduleModal);
+
+  scheduleModal.addEventListener("click", (event) => {
+    if (event.target === scheduleModal) closeScheduleModal();
+  });
+
+  document.getElementById("scheduleGoToMatchBtn").addEventListener("click", () => {
+    const leagueId = scheduleLeagueSelect.value;
+    if (!leagueId) return;
+    scheduleLeagueId = leagueId;
+    scheduleMatchTitle.textContent = "Schedule Matches — " + (allLeagues[leagueId].name || leagueId);
+    populateTeamSelect(scheduleTeamASelect, false);
+    populateTeamSelect(scheduleTeamBSelect, false);
+    resetScheduleForm();
+    showScheduleScreen("scheduleMatchScreen");
+  });
+
+  document.getElementById("scheduleBackBtn").addEventListener("click", () => {
+    showScheduleScreen("scheduleLeagueScreen");
+  });
+
+  function checkScheduleTeamsMatch() {
+    const teamA = scheduleTeamASelect.value;
+    const teamB = scheduleTeamBSelect.value;
+    scheduleTeamError.style.display = teamA && teamB && teamA === teamB ? "block" : "none";
+  }
+
+  scheduleTeamASelect.addEventListener("change", checkScheduleTeamsMatch);
+  scheduleTeamBSelect.addEventListener("change", checkScheduleTeamsMatch);
+
+  document.getElementById("scheduleSaveMatchBtn").addEventListener("click", () => {
+    const teamA = scheduleTeamASelect.value;
+    const teamB = scheduleTeamBSelect.value;
+    const date = scheduleDateInput.value;
+    const time = scheduleTimeInput.value;
+    if (!teamA || !teamB) return;
+
+    if (teamA === teamB) {
+      scheduleTeamError.style.display = "block";
+      return;
+    }
+    scheduleTeamError.style.display = "none";
+
+    const matchId = scheduleEditingMatchId || ("m" + Date.now());
+    scheduleEditingMatchId = matchId;
+    set(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + matchId), { teamA: teamA, teamB: teamB, date: date, time: time });
+  });
+
+  document.getElementById("scheduleAddAnotherBtn").addEventListener("click", resetScheduleForm);
+
+  document.getElementById("scheduleFinishBtn").addEventListener("click", closeScheduleModal);
+  document.getElementById("scheduleFinishCancelBtn").addEventListener("click", closeScheduleModal);
+
+  const editScheduleMatchModal = document.getElementById("editScheduleMatchModal");
+  const editScheduleDateInput = document.getElementById("editScheduleDateInput");
+  const editScheduleTimeInput = document.getElementById("editScheduleTimeInput");
+  const removeScheduleMatchConfirmModal = document.getElementById("removeScheduleMatchConfirmModal");
+  let pendingScheduleEditId = "";
+  let pendingScheduleRemoveId = "";
+
+  function closeEditScheduleMatchModal() {
+    editScheduleMatchModal.classList.remove("open");
+    editScheduleDateInput.value = "";
+    editScheduleTimeInput.value = "";
+    pendingScheduleEditId = "";
+  }
+
+  function closeRemoveScheduleMatchConfirmModal() {
+    removeScheduleMatchConfirmModal.classList.remove("open");
+    pendingScheduleRemoveId = "";
+  }
+
+  document.getElementById("cancelEditScheduleBtn").addEventListener("click", closeEditScheduleMatchModal);
+
+  editScheduleMatchModal.addEventListener("click", (event) => {
+    if (event.target === editScheduleMatchModal) closeEditScheduleMatchModal();
+  });
+
+  document.getElementById("saveEditScheduleBtn").addEventListener("click", () => {
+    if (!pendingScheduleEditId || !activeLeagueId) return;
+    const existing = (remoteState.schedule || {})[pendingScheduleEditId] || {};
+    set(ref(db, "leagues/" + activeLeagueId + "/schedule/" + pendingScheduleEditId), {
+      teamA: existing.teamA,
+      teamB: existing.teamB,
+      date: editScheduleDateInput.value,
+      time: editScheduleTimeInput.value
+    });
+    closeEditScheduleMatchModal();
+  });
+
+  removeScheduleMatchConfirmModal.addEventListener("click", (event) => {
+    if (event.target === removeScheduleMatchConfirmModal) closeRemoveScheduleMatchConfirmModal();
+  });
+
+  document.getElementById("confirmRemoveScheduleNo").addEventListener("click", closeRemoveScheduleMatchConfirmModal);
+
+  document.getElementById("confirmRemoveScheduleYes").addEventListener("click", () => {
+    if (!pendingScheduleRemoveId || !activeLeagueId) return;
+    remove(ref(db, "leagues/" + activeLeagueId + "/schedule/" + pendingScheduleRemoveId));
+    closeRemoveScheduleMatchConfirmModal();
   });
 
   deleteLeagueConfirmModal.addEventListener("click", (event) => {
