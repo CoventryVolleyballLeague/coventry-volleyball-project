@@ -504,7 +504,7 @@
   .rally-layout {
     display: flex;
     gap: 1.5rem;
-    align-items: flex-start;
+    align-items: stretch;
     margin-bottom: 2rem;
     flex-wrap: wrap;
   }
@@ -518,6 +518,8 @@
     padding: 1.25rem 1.5rem;
     box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
     flex: 1 1 380px;
+    display: flex;
+    flex-direction: column;
   }
 
   .field {
@@ -595,18 +597,21 @@
   }
 
   .set-scores {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.9rem;
+    flex: 1;
   }
 
   .set-card {
-    flex: 1 1 220px;
     border: 1px solid #e5e0d5;
     border-radius: 8px;
     padding: 0.9rem 1.1rem;
     background: var(--cream);
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .set-card-title {
@@ -671,6 +676,12 @@
   @media (max-width: 900px) {
     .rally-layout {
       flex-direction: column;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .set-scores {
+      grid-template-columns: 1fr;
     }
   }
 
