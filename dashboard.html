@@ -514,6 +514,40 @@
     color: #b3261e;
   }
 
+  .table-actions-cell {
+    display: flex;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .table-action-btn {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    background: transparent;
+    color: var(--navy);
+  }
+
+  .table-action-btn.remove-btn {
+    border-color: #b3261e;
+    color: #b3261e;
+  }
+
+  .table-action-btn select {
+    font-family: inherit;
+    font-size: 0.85rem;
+  }
+
+  table.data-table td.score-highlight {
+    font-weight: 700;
+    color: var(--navy);
+    background: var(--cream);
+  }
+
   .stat-card {
     background: white;
     border: 1px solid #e5e0d5;
@@ -1113,6 +1147,7 @@
             <div class="field">
               <label for="pointTypeSelect">Point Type</label>
               <select id="pointTypeSelect">
+                <option>Rally Point</option>
                 <option>Service Ace</option>
                 <option>Kill / Attack Point</option>
                 <option>Block Point</option>
@@ -1142,22 +1177,7 @@
         </div>
       </div>
 
-      <h2 class="section-heading">Full Rally Log</h2>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Rally No.</th>
-              <th>Winning Team</th>
-              <th>Player</th>
-              <th>Point Type</th>
-              <th>Score</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="rallyLogBody"></tbody>
-        </table>
-      </div>
+      <div id="rallyLogContainer"></div>
     </section>
 
     <section class="page-section" id="live-scores">
@@ -1167,22 +1187,7 @@
         <div class="set-scores" id="setScoresGuest"></div>
       </div>
 
-      <h2 class="section-heading">Rally Log</h2>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Rally No.</th>
-              <th>Winning Team</th>
-              <th>Player</th>
-              <th>Point Type</th>
-              <th>Score</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="rallyLogBodyGuest"></tbody>
-        </table>
-      </div>
+      <div id="rallyLogContainerGuest"></div>
     </section>
 
     <section class="page-section" id="teams">
@@ -2151,6 +2156,24 @@
     writeToLeague("rallyState", state);
   }
 
+  function recomputeSetScores(state, setIndex) {
+    let a = 0;
+    let b = 0;
+    state.log.forEach((entry) => {
+      const entrySet = entry.setIndex === undefined ? 0 : entry.setIndex;
+      if (entrySet !== setIndex) return;
+      if (entry.winningTeam === state.teamA) {
+        a++;
+      } else {
+        b++;
+      }
+      entry.scoreA = a;
+      entry.scoreB = b;
+    });
+    state.sets[setIndex].a = a;
+    state.sets[setIndex].b = b;
+  }
+
   function computeSetWinner(set, index) {
     const threshold = index === 2 ? 15 : 25;
     if (set.a >= threshold && set.a - set.b >= 2) return "A";
@@ -2194,25 +2217,227 @@
     });
   }
 
-  function renderRallyLogInto(tbody, state) {
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    state.log.slice().reverse().forEach((entry) => {
+  const POINT_TYPES = ["Rally Point", "Service Ace", "Kill / Attack Point", "Block Point", "Opponent Fault"];
+  let editingRallyIndex = -1;
+
+  function buildRallyPlayerOptions(selectEl, team, selectedName) {
+    selectEl.innerHTML = '<option value="">No specific player</option>';
+    getEffectivePlayers()
+      .filter((p) => p.team === team)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        const option = document.createElement("option");
+        option.value = p.name;
+        option.textContent = p.isCaptain ? p.name + " (C)" : p.name;
+        selectEl.appendChild(option);
+      });
+    selectEl.value = selectedName || "";
+  }
+
+  function buildSetRallyTable(setIndex, state, isAdmin) {
+    const entries = [];
+    state.log.forEach((entry, fullIndex) => {
+      const entrySet = entry.setIndex === undefined ? 0 : entry.setIndex;
+      if (entrySet === setIndex) entries.push({ entry, fullIndex });
+    });
+
+    const wrap = document.createElement("div");
+
+    const heading = document.createElement("h2");
+    heading.className = "section-heading";
+    heading.textContent = "Set " + (setIndex + 1) + " Rally Log";
+    wrap.appendChild(heading);
+
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "table-wrap";
+
+    const table = document.createElement("table");
+    table.className = "data-table";
+    const thead = document.createElement("thead");
+    thead.innerHTML =
+      "<tr><th>Rally No.</th><th>Winning Team</th><th>Player</th><th>Point Type</th><th>" +
+      displayName(state.teamA) + "</th><th>" + displayName(state.teamB) + "</th><th>Notes</th>" +
+      (isAdmin ? "<th>Actions</th>" : "") +
+      "</tr>";
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    if (!entries.length) {
       const tr = document.createElement("tr");
-      tr.innerHTML =
-        '<td>' + entry.rallyNo + '</td>' +
-        '<td class="team-cell">' + displayName(entry.winningTeam) + '</td>' +
-        '<td>' + (entry.player || "&mdash;") + '</td>' +
-        '<td>' + entry.pointType + '</td>' +
-        '<td>' + entry.scoreA + '-' + entry.scoreB + '</td>' +
-        '<td>' + (entry.notes || "&mdash;") + '</td>';
+      const td = document.createElement("td");
+      td.colSpan = isAdmin ? 8 : 7;
+      td.textContent = "No rallies recorded yet.";
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+
+    entries.forEach(({ entry, fullIndex }) => {
+      const tr = document.createElement("tr");
+
+      if (isAdmin && fullIndex === editingRallyIndex) {
+        const teamCell = document.createElement("td");
+        const teamSelect = document.createElement("select");
+        [state.teamA, state.teamB].forEach((team) => {
+          const option = document.createElement("option");
+          option.value = team;
+          option.textContent = displayName(team);
+          teamSelect.appendChild(option);
+        });
+        teamSelect.value = entry.winningTeam;
+        teamCell.appendChild(teamSelect);
+
+        const playerCell = document.createElement("td");
+        const playerSelect = document.createElement("select");
+        buildRallyPlayerOptions(playerSelect, entry.winningTeam, entry.player);
+        playerCell.appendChild(playerSelect);
+
+        teamSelect.addEventListener("change", () => {
+          buildRallyPlayerOptions(playerSelect, teamSelect.value, "");
+        });
+
+        const pointTypeCell = document.createElement("td");
+        const pointTypeSelect = document.createElement("select");
+        POINT_TYPES.forEach((pt) => {
+          const option = document.createElement("option");
+          option.value = pt;
+          option.textContent = pt;
+          pointTypeSelect.appendChild(option);
+        });
+        pointTypeSelect.value = entry.pointType;
+        pointTypeCell.appendChild(pointTypeSelect);
+
+        const actionsCell = document.createElement("td");
+        actionsCell.className = "table-actions-cell";
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.className = "table-action-btn";
+        saveBtn.textContent = "Save";
+        saveBtn.addEventListener("click", () => {
+          const newState = JSON.parse(JSON.stringify(loadRallyState()));
+          const target = newState.log[fullIndex];
+          const targetSetIndex = target.setIndex === undefined ? 0 : target.setIndex;
+
+          target.winningTeam = teamSelect.value;
+          target.player = playerSelect.value;
+          target.pointType = pointTypeSelect.value;
+
+          recomputeSetScores(newState, targetSetIndex);
+
+          editingRallyIndex = -1;
+          saveRallyState(newState);
+          remoteState.rallyState = newState;
+          renderAll();
+        });
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "table-action-btn";
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.addEventListener("click", () => {
+          editingRallyIndex = -1;
+          renderAll();
+        });
+
+        actionsCell.appendChild(saveBtn);
+        actionsCell.appendChild(cancelBtn);
+
+        tr.appendChild(document.createElement("td")).textContent = entry.rallyNo;
+        tr.appendChild(teamCell);
+        tr.appendChild(playerCell);
+        tr.appendChild(pointTypeCell);
+        const scoreACell = document.createElement("td");
+        scoreACell.textContent = entry.scoreA;
+        if (entry.winningTeam === state.teamA) scoreACell.className = "score-highlight";
+        tr.appendChild(scoreACell);
+        const scoreBCell = document.createElement("td");
+        scoreBCell.textContent = entry.scoreB;
+        if (entry.winningTeam === state.teamB) scoreBCell.className = "score-highlight";
+        tr.appendChild(scoreBCell);
+        const notesCell = document.createElement("td");
+        notesCell.textContent = entry.notes || "—";
+        tr.appendChild(notesCell);
+        tr.appendChild(actionsCell);
+      } else {
+        const scoreACellHtml = '<td class="' + (entry.winningTeam === state.teamA ? "score-highlight" : "") + '">' + entry.scoreA + "</td>";
+        const scoreBCellHtml = '<td class="' + (entry.winningTeam === state.teamB ? "score-highlight" : "") + '">' + entry.scoreB + "</td>";
+        tr.innerHTML =
+          "<td>" + entry.rallyNo + "</td>" +
+          '<td class="team-cell">' + displayName(entry.winningTeam) + "</td>" +
+          "<td>" + (entry.player || "&mdash;") + "</td>" +
+          "<td>" + entry.pointType + "</td>" +
+          scoreACellHtml +
+          scoreBCellHtml +
+          "<td>" + (entry.notes || "&mdash;") + "</td>";
+
+        if (isAdmin) {
+          const actionsCell = document.createElement("td");
+          actionsCell.className = "table-actions-cell";
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "table-action-btn";
+          editBtn.textContent = "Edit";
+          editBtn.addEventListener("click", () => {
+            editingRallyIndex = fullIndex;
+            renderAll();
+          });
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "table-action-btn remove-btn";
+          removeBtn.textContent = "Remove";
+          removeBtn.addEventListener("click", () => {
+            const newState = JSON.parse(JSON.stringify(loadRallyState()));
+            const removedEntry = newState.log[fullIndex];
+            const removedSetIndex = removedEntry.setIndex === undefined ? 0 : removedEntry.setIndex;
+            const targetSet = newState.sets[removedSetIndex];
+            targetSet.rallies = Math.max(0, targetSet.rallies - 1);
+
+            newState.log.splice(fullIndex, 1);
+            let renumber = 1;
+            newState.log.forEach((e) => {
+              const eSet = e.setIndex === undefined ? 0 : e.setIndex;
+              if (eSet === removedSetIndex) {
+                e.rallyNo = renumber;
+                renumber++;
+              }
+            });
+
+            recomputeSetScores(newState, removedSetIndex);
+
+            editingRallyIndex = -1;
+            saveRallyState(newState);
+            remoteState.rallyState = newState;
+            renderAll();
+          });
+
+          actionsCell.appendChild(editBtn);
+          actionsCell.appendChild(removeBtn);
+          tr.appendChild(actionsCell);
+        }
+      }
+
       tbody.appendChild(tr);
     });
+
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    wrap.appendChild(tableWrap);
+    return wrap;
+  }
+
+  function renderRallyLogSets(containerId, state, isAdmin) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    for (let i = 0; i < state.sets.length; i++) {
+      container.appendChild(buildSetRallyTable(i, state, isAdmin));
+    }
   }
 
   function renderRallyLog(state) {
-    renderRallyLogInto(document.getElementById("rallyLogBody"), state);
-    renderRallyLogInto(document.getElementById("rallyLogBodyGuest"), state);
+    renderRallyLogSets("rallyLogContainer", state, true);
+    renderRallyLogSets("rallyLogContainerGuest", state, false);
   }
 
   function renderAll() {
@@ -2294,8 +2519,11 @@
       }
       set.rallies++;
 
+      const rallyNoForSet = state.log.filter((e) => (e.setIndex === undefined ? 0 : e.setIndex) === setIndex).length + 1;
+
       state.log.push({
-        rallyNo: state.log.length + 1,
+        rallyNo: rallyNoForSet,
+        setIndex,
         winningTeam: winningTeamName,
         player,
         pointType,
