@@ -927,6 +927,35 @@
     font-size: 1.05rem;
   }
 
+  .next-match-card {
+    border: 1px dashed #d8d0bf;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: var(--cream);
+    text-align: center;
+  }
+
+  .next-match-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--gold);
+    margin-bottom: 0.6rem;
+  }
+
+  .next-match-teams {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.4rem;
+  }
+
+  .next-match-date {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
   .set-scores {
     display: grid;
     grid-template-columns: 1fr;
@@ -1880,9 +1909,51 @@
   function resolveSelectedMatchId(scheduleIds) {
     // Every viewer (admin or guest, on any device) always follows the
     // league's shared activeMatchId so Live Scores never drifts out of
-    // sync with whichever match is actually being updated.
+    // sync with whichever match is actually being updated. No match is
+    // selected by default — the admin must explicitly pick one.
     if (remoteState.activeMatchId && scheduleIds.includes(remoteState.activeMatchId)) return remoteState.activeMatchId;
-    return scheduleIds[0] || null;
+    return null;
+  }
+
+  function getNextUpcomingMatchId() {
+    const schedule = remoteState.schedule || {};
+    const defaults = defaultRallyState();
+    const rallyStates = remoteState.rallyStates || {};
+    return getSortedScheduleIds().find((id) => {
+      const match = schedule[id];
+      const saved = rallyStates[id] || {};
+      const state = {
+        teamA: match.teamA,
+        teamB: match.teamB,
+        sets: saved.sets || defaults.sets,
+        log: saved.log || []
+      };
+      return computeMatchWinner(state) === "TBD";
+    }) || null;
+  }
+
+  function renderNextUpcomingCard(container, label) {
+    if (!container) return;
+    const schedule = remoteState.schedule || {};
+    const nextMatchId = getNextUpcomingMatchId();
+    const match = nextMatchId ? schedule[nextMatchId] : null;
+
+    if (!match) {
+      container.innerHTML =
+        '<div class="next-match-card">' +
+          '<div class="next-match-label">' + escapeHtml(label) + '</div>' +
+          '<div class="next-match-date">No upcoming matches scheduled.</div>' +
+        '</div>';
+      return;
+    }
+
+    const dateLabel = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
+    container.innerHTML =
+      '<div class="next-match-card">' +
+        '<div class="next-match-label">' + escapeHtml(label) + '</div>' +
+        '<div class="next-match-teams">' + displayName(match.teamA) + ' vs ' + displayName(match.teamB) + '</div>' +
+        '<div class="next-match-date">' + dateLabel + '</div>' +
+      '</div>';
   }
 
   function displayName(canonicalTeam) {
@@ -2519,6 +2590,11 @@
     }
     matchSelect.disabled = false;
 
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select current match";
+    matchSelect.appendChild(placeholder);
+
     scheduleIds.forEach((id, i) => {
       const match = schedule[id];
       const matchState = Object.assign({}, defaultRallyState(), remoteState.rallyStates && remoteState.rallyStates[id], {
@@ -3063,8 +3139,34 @@
   }
 
   function renderAll() {
-    const state = loadRallyState();
     renderMatchSelect();
+
+    const mwAdmin = document.getElementById("matchWinnerAdmin");
+    const mwGuest = document.getElementById("matchWinnerGuest");
+    const rallyLogAdmin = document.getElementById("rallyLogContainer");
+    const rallyLogGuest = document.getElementById("rallyLogContainerGuest");
+    const winningTeamSelect = document.getElementById("winningTeamSelect");
+    const resetMatchBtn = document.getElementById("resetMatchBtn");
+    const shareUpdateBtn = document.getElementById("shareUpdateBtn");
+
+    if (!selectedMatchId) {
+      renderNextUpcomingCard(document.getElementById("setScoresAdmin"), "Next Upcoming Match");
+      renderNextUpcomingCard(document.getElementById("setScoresGuest"), "Next Upcoming Match");
+      if (mwAdmin) mwAdmin.textContent = "No match currently active";
+      if (mwGuest) mwGuest.textContent = "No match currently active";
+      if (rallyLogAdmin) rallyLogAdmin.innerHTML = "";
+      if (rallyLogGuest) rallyLogGuest.innerHTML = "";
+      if (winningTeamSelect) winningTeamSelect.innerHTML = "";
+      if (resetMatchBtn) resetMatchBtn.disabled = true;
+      if (shareUpdateBtn) shareUpdateBtn.disabled = true;
+      populatePlayerOptions();
+      return;
+    }
+
+    if (resetMatchBtn) resetMatchBtn.disabled = false;
+    if (shareUpdateBtn) shareUpdateBtn.disabled = false;
+
+    const state = loadRallyState();
     renderScoreboard(document.getElementById("setScoresAdmin"), state);
     renderScoreboard(document.getElementById("setScoresGuest"), state);
     renderRallyLog(state);
@@ -3076,14 +3178,19 @@
       matchWinnerText += " (" + displayName(state.teamA) + " " + mp[state.teamA] + " MP – " +
         displayName(state.teamB) + " " + mp[state.teamB] + " MP)";
     }
-    const mwAdmin = document.getElementById("matchWinnerAdmin");
-    const mwGuest = document.getElementById("matchWinnerGuest");
     if (mwAdmin) mwAdmin.textContent = matchWinnerText;
     if (mwGuest) mwGuest.textContent = matchWinnerText;
 
     checkForMilestones(selectedMatchId, state, winner);
 
-    const winningTeamSelect = document.getElementById("winningTeamSelect");
+    if (winner !== "TBD" && sessionStorage.getItem("role") === "admin") {
+      // Once the active match is decided (whether just now or already
+      // finished before this page loaded), clear it so the Match dropdown
+      // and Live Scores fall back to showing the next upcoming match.
+      selectedMatchId = null;
+      writeToLeague("activeMatchId", null);
+    }
+
     if (winningTeamSelect) {
       const currentValue = winningTeamSelect.value;
       winningTeamSelect.innerHTML = "";
@@ -3143,6 +3250,7 @@
   if (rallyForm) {
     rallyForm.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!selectedMatchId) return;
       const state = JSON.parse(JSON.stringify(loadRallyState()));
       const setIndex = parseInt(document.getElementById("setSelect").value, 10) - 1;
       const winningTeamName = document.getElementById("winningTeamSelect").value;
