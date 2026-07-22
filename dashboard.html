@@ -397,6 +397,58 @@
     margin-top: 0.2rem;
   }
 
+  .league-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .league-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--cream);
+    border: 1px solid #e5e0d5;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+  }
+
+  .league-status-name {
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .league-status-options {
+    display: flex;
+    gap: 1.25rem;
+  }
+
+  .league-status-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .league-status-tag {
+    font-weight: 700;
+  }
+
+  .league-status-tag.is-active {
+    color: #1e7d34;
+  }
+
+  .league-status-tag.is-archived {
+    color: #b3261e;
+  }
+
   .schedule-list {
     display: flex;
     flex-direction: column;
@@ -795,6 +847,77 @@
     background: #b3261e;
     color: white;
     border-color: #b3261e;
+  }
+
+  .wa-share-btn {
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid #25d366;
+    background: #25d366;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .wa-share-btn:hover {
+    background: #1eb959;
+    border-color: #1eb959;
+  }
+
+  .milestone-toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 340px;
+  }
+
+  .milestone-toast {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-left: 4px solid #25d366;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 12px 30px rgba(28, 43, 74, 0.2);
+  }
+
+  .milestone-toast-title {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .milestone-toast-message {
+    font-size: 0.85rem;
+    color: var(--text);
+    white-space: pre-wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  .milestone-toast-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .milestone-toast-dismiss {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 2px solid var(--navy);
+    background: transparent;
+    color: var(--navy);
   }
 
   .match-winner-banner {
@@ -1209,7 +1332,10 @@
         <div class="scoreboard-card">
           <div class="section-header-row">
             <h2 class="section-heading" style="margin-top: 0;">Current Match Score</h2>
-            <button class="btn-remove-player" id="resetMatchBtn" style="margin-bottom: 0;">Reset Match</button>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="wa-share-btn" id="shareUpdateBtn">Share Update</button>
+              <button class="btn-remove-player" id="resetMatchBtn" style="margin-bottom: 0;">Reset Match</button>
+            </div>
           </div>
           <div class="match-winner-banner" id="matchWinnerAdmin">Match Winner: TBD</div>
           <div class="set-scores" id="setScoresAdmin"></div>
@@ -1364,6 +1490,7 @@
         <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
+        <button class="settings-action-btn" id="activateArchiveLeagueBtn">Activate/Archive a League</button>
       </div>
     </section>
 
@@ -1611,6 +1738,21 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="activateArchiveLeagueModal">
+  <div class="modal-box" style="max-width: 560px;">
+    <h2 class="modal-title">Activate/Archive a League</h2>
+    <p class="section-note" style="margin-bottom: 1.25rem;">
+      Only one league can be active at a time. Scoring, rosters, and schedules all follow the active league.
+      Choosing "Active" for a league automatically archives every other league.
+    </p>
+    <div class="league-status-list" id="leagueStatusList"></div>
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveLeagueStatusBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelLeagueStatusBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tradePlayerModal">
   <div class="modal-box">
     <h2 class="modal-title">Trade Player</h2>
@@ -1667,6 +1809,8 @@
   </div>
 </div>
 
+<div class="milestone-toast-container" id="milestoneToastContainer"></div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
@@ -1716,6 +1860,7 @@
   let remoteState = defaultRemoteState();
   let selectedMatchId = null;
   let leaguesTabLeagueId = null;
+  let milestoneTracker = {};
 
   function getSortedLeagueIds() {
     return Object.keys(allLeagues).sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0));
@@ -2797,6 +2942,126 @@
     renderRallyLogSets("rallyLogContainerGuest", state, false);
   }
 
+  function buildWhatsAppLink(message) {
+    return "https://wa.me/?text=" + encodeURIComponent(message);
+  }
+
+  function shareToWhatsApp(message) {
+    window.open(buildWhatsAppLink(message), "_blank");
+  }
+
+  function getMatchNumber(matchId) {
+    const index = getSortedScheduleIds().indexOf(matchId);
+    return index === -1 ? null : index + 1;
+  }
+
+  const SHARE_FOOTER = "For more live updates, click on the link https://coventryvolleyballleague.github.io/coventry-volleyball-project/dashboard.html#live-scores";
+
+  function buildSetBreakdownLines(state) {
+    const lines = [];
+    state.sets.forEach((set, i) => {
+      if (set.rallies > 0) {
+        lines.push("Set " + (i + 1));
+        lines.push(displayName(state.teamA) + " " + set.a + " - " + set.b + " " + displayName(state.teamB));
+      }
+    });
+    return lines;
+  }
+
+  function buildMatchSummaryMessage(matchId, state) {
+    const matchNumber = getMatchNumber(matchId);
+    const lines = [
+      "🏐 " + (remoteState.name || "Coventry Volleyball League") + " Tournament Update",
+      (matchNumber ? "Match " + matchNumber + ": " : "") + displayName(state.teamA) + " vs " + displayName(state.teamB)
+    ];
+    state.sets.forEach((set, i) => {
+      if (set.rallies > 0) {
+        lines.push("Set " + (i + 1) + ": " + displayName(state.teamA) + " " + set.a + " points - " +
+          displayName(state.teamB) + " " + set.b + " points");
+        const setWinner = computeSetWinner(set, i);
+        if (setWinner) {
+          lines.push("Set " + (i + 1) + " Winner: " + displayName(setWinner === "A" ? state.teamA : state.teamB));
+        }
+      }
+    });
+    const winner = computeMatchWinner(state);
+    lines.push(winner === "TBD" ? "Match in progress" : "🏆 Match Winner: " + displayName(winner));
+    lines.push("");
+    lines.push(SHARE_FOOTER);
+    return lines.join("\n");
+  }
+
+  function showMilestoneToast(title, message) {
+    const container = document.getElementById("milestoneToastContainer");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.className = "milestone-toast";
+    toast.innerHTML =
+      '<div class="milestone-toast-title">' + escapeHtml(title) + "</div>" +
+      '<div class="milestone-toast-message">' + escapeHtml(message) + "</div>" +
+      '<div class="milestone-toast-actions">' +
+        '<button type="button" class="wa-share-btn milestone-toast-share">Share to WhatsApp</button>' +
+        '<button type="button" class="milestone-toast-dismiss">Dismiss</button>' +
+      "</div>";
+    container.appendChild(toast);
+
+    toast.querySelector(".milestone-toast-share").addEventListener("click", () => {
+      shareToWhatsApp(message);
+      toast.remove();
+    });
+    toast.querySelector(".milestone-toast-dismiss").addEventListener("click", () => {
+      toast.remove();
+    });
+
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+    }, 30000);
+  }
+
+  function checkForMilestones(matchId, state, matchWinner) {
+    // Only prompt the admin (the one actively scoring) to share a milestone.
+    if (!matchId || sessionStorage.getItem("role") !== "admin") return;
+
+    const setWinners = state.sets.map((set, i) => computeSetWinner(set, i));
+    const prev = milestoneTracker[matchId];
+
+    if (!prev) {
+      // First time this match is seen this session — remember where things
+      // stand, but don't fire toasts for milestones reached before now.
+      milestoneTracker[matchId] = { sets: setWinners, matchWinner };
+      return;
+    }
+
+    setWinners.forEach((winner, i) => {
+      if (winner && !prev.sets[i]) {
+        const winnerTeam = winner === "A" ? state.teamA : state.teamB;
+        const lines = [
+          "🏐 " + displayName(winnerTeam) + " won Set " + (i + 1) + "!",
+          ""
+        ].concat(buildSetBreakdownLines(state), ["", SHARE_FOOTER]);
+        showMilestoneToast("Set " + (i + 1) + " won!", lines.join("\n"));
+      }
+    });
+
+    if (matchWinner !== "TBD" && prev.matchWinner === "TBD") {
+      const mp = computeMatchPoints(state);
+      const lines = [
+        displayName(matchWinner) + " won the match!",
+        ""
+      ].concat(buildSetBreakdownLines(state), [
+        "",
+        "Points Each Team earned -",
+        displayName(state.teamA) + " " + mp[state.teamA] + " MP – " + displayName(state.teamB) + " " + mp[state.teamB] + " MP",
+        "",
+        SHARE_FOOTER
+      ]);
+      showMilestoneToast("Match won!", lines.join("\n"));
+    }
+
+    milestoneTracker[matchId] = { sets: setWinners, matchWinner };
+  }
+
   function renderAll() {
     const state = loadRallyState();
     renderMatchSelect();
@@ -2815,6 +3080,8 @@
     const mwGuest = document.getElementById("matchWinnerGuest");
     if (mwAdmin) mwAdmin.textContent = matchWinnerText;
     if (mwGuest) mwGuest.textContent = matchWinnerText;
+
+    checkForMilestones(selectedMatchId, state, winner);
 
     const winningTeamSelect = document.getElementById("winningTeamSelect");
     if (winningTeamSelect) {
@@ -2950,9 +3217,17 @@
     const resetState = defaultRallyState();
     saveRallyState(resetState);
     cacheRallyState(resetState);
+    if (selectedMatchId) delete milestoneTracker[selectedMatchId];
     renderAll();
     resetMatchConfirmModal.classList.remove("open");
   });
+
+  const shareUpdateBtn = document.getElementById("shareUpdateBtn");
+  if (shareUpdateBtn) {
+    shareUpdateBtn.addEventListener("click", () => {
+      shareToWhatsApp(buildMatchSummaryMessage(selectedMatchId, loadRallyState()));
+    });
+  }
 
   function renderActiveLeagueLabel() {
     const text = activeLeagueId
@@ -3009,7 +3284,10 @@
       leagueIds.forEach((id) => {
         const option = document.createElement("option");
         option.value = id;
-        option.textContent = allLeagues[id].name || id;
+        const isActive = id === activeLeagueId;
+        option.textContent = (allLeagues[id].name || id) + (isActive ? " — Active" : " — Archived");
+        option.style.color = isActive ? "#1e7d34" : "#b3261e";
+        option.style.fontWeight = "700";
         select.appendChild(option);
       });
     }
@@ -3510,6 +3788,112 @@
     }
 
     closeDeleteLeagueConfirmModal();
+  });
+
+  const activateArchiveLeagueModal = document.getElementById("activateArchiveLeagueModal");
+  const activateArchiveLeagueBtn = document.getElementById("activateArchiveLeagueBtn");
+  const leagueStatusList = document.getElementById("leagueStatusList");
+
+  function renderLeagueStatusList() {
+    if (!leagueStatusList) return;
+    leagueStatusList.innerHTML = "";
+
+    const leagueIds = getSortedLeagueIds();
+    if (!leagueIds.length) {
+      leagueStatusList.innerHTML = '<p class="section-note">No leagues yet. Create one first.</p>';
+      return;
+    }
+
+    leagueIds.forEach((id) => {
+      const league = allLeagues[id];
+      const row = document.createElement("div");
+      row.className = "league-status-row";
+
+      const name = document.createElement("div");
+      name.className = "league-status-name";
+      name.textContent = league.name || id;
+
+      const options = document.createElement("div");
+      options.className = "league-status-options";
+
+      const activeRadio = document.createElement("input");
+      activeRadio.type = "radio";
+      activeRadio.name = "leagueStatus_" + id;
+      activeRadio.checked = id === activeLeagueId;
+      activeRadio.dataset.leagueId = id;
+      activeRadio.className = "league-status-radio-active";
+
+      const activeLabel = document.createElement("label");
+      activeLabel.appendChild(activeRadio);
+      activeLabel.appendChild(document.createTextNode("Active"));
+
+      const archiveRadio = document.createElement("input");
+      archiveRadio.type = "radio";
+      archiveRadio.name = "leagueStatus_" + id;
+      archiveRadio.checked = id !== activeLeagueId;
+      archiveRadio.dataset.leagueId = id;
+      archiveRadio.className = "league-status-radio-archive";
+
+      const archiveLabel = document.createElement("label");
+      archiveLabel.appendChild(archiveRadio);
+      archiveLabel.appendChild(document.createTextNode("Archive"));
+
+      activeRadio.addEventListener("change", () => {
+        if (!activeRadio.checked) return;
+        // Only one league can be active: selecting Active here archives every other row.
+        leagueStatusList.querySelectorAll(".league-status-radio-active").forEach((el) => {
+          el.checked = el.dataset.leagueId === id;
+        });
+        leagueStatusList.querySelectorAll(".league-status-radio-archive").forEach((el) => {
+          el.checked = el.dataset.leagueId !== id;
+        });
+      });
+
+      archiveRadio.addEventListener("change", () => {
+        if (!archiveRadio.checked) return;
+        // At least one league must stay active; if archiving this one would
+        // leave none active, keep it active until another row is chosen instead.
+        const anyActiveChecked = leagueStatusList.querySelector(".league-status-radio-active:checked");
+        if (!anyActiveChecked) {
+          activeRadio.checked = true;
+          archiveRadio.checked = false;
+        }
+      });
+
+      options.appendChild(activeLabel);
+      options.appendChild(archiveLabel);
+      row.appendChild(name);
+      row.appendChild(options);
+      leagueStatusList.appendChild(row);
+    });
+  }
+
+  if (activateArchiveLeagueBtn) {
+    activateArchiveLeagueBtn.addEventListener("click", () => {
+      renderLeagueStatusList();
+      activateArchiveLeagueModal.classList.add("open");
+    });
+  }
+
+  function closeActivateArchiveLeagueModal() {
+    activateArchiveLeagueModal.classList.remove("open");
+  }
+
+  activateArchiveLeagueModal.addEventListener("click", (event) => {
+    if (event.target === activateArchiveLeagueModal) closeActivateArchiveLeagueModal();
+  });
+
+  document.getElementById("cancelLeagueStatusBtn").addEventListener("click", closeActivateArchiveLeagueModal);
+
+  document.getElementById("saveLeagueStatusBtn").addEventListener("click", () => {
+    const checkedActive = leagueStatusList.querySelector(".league-status-radio-active:checked");
+    if (checkedActive) {
+      const newActiveId = checkedActive.dataset.leagueId;
+      if (newActiveId !== activeLeagueId) {
+        set(ref(db, "leagues/_active"), newActiveId);
+      }
+    }
+    closeActivateArchiveLeagueModal();
   });
 
   renderAll();
