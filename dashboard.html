@@ -869,6 +869,17 @@
     border-color: #1eb959;
   }
 
+  .wa-share-btn:disabled,
+  .btn-remove-player:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .wa-share-btn:disabled:hover {
+    background: #25d366;
+    border-color: #25d366;
+  }
+
   .milestone-toast-container {
     position: fixed;
     bottom: 1.5rem;
@@ -1181,6 +1192,7 @@
   <div class="sidebar">
     <a class="nav-link active" href="#leagues" data-section="leagues">Leagues</a>
     <a class="nav-link live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
+    <a class="nav-link" href="#previous-results" data-section="previous-results">Previous Match Results</a>
     <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
@@ -1382,6 +1394,18 @@
       </div>
 
       <div id="rallyLogContainerGuest"></div>
+    </section>
+
+    <section class="page-section" id="previous-results">
+      <h1>Previous Match Results</h1>
+      <p class="section-note">Browse completed matches — final set scores, match points, and the full rally log for each set.<span id="activeLeagueLabelPreviousResults"></span></p>
+
+      <div class="field" style="max-width: 480px;">
+        <label for="previousMatchSelect">Select a match</label>
+        <select id="previousMatchSelect"></select>
+      </div>
+
+      <div id="previousMatchDetails"></div>
     </section>
 
     <section class="page-section" id="teams">
@@ -1890,6 +1914,7 @@
   let selectedMatchId = null;
   let leaguesTabLeagueId = null;
   let milestoneTracker = {};
+  let previousResultsEditingIndex = -1;
 
   function getSortedLeagueIds() {
     return Object.keys(allLeagues).sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0));
@@ -2019,7 +2044,16 @@
     renderScheduleMatchList();
     renderPublicSchedule();
     renderLeaguesTab();
+    renderPreviousMatchSelect();
   });
+
+  const previousMatchSelectEl = document.getElementById("previousMatchSelect");
+  if (previousMatchSelectEl) {
+    previousMatchSelectEl.addEventListener("change", () => {
+      previousResultsEditingIndex = -1;
+      renderPreviousMatchDetails(previousMatchSelectEl.value);
+    });
+  }
 
   const leaguesTabSelectEl = document.getElementById("leaguesTabSelect");
   if (leaguesTabSelectEl) {
@@ -2562,15 +2596,11 @@
     };
   }
 
-  function saveRallyState(state) {
-    if (!selectedMatchId) return;
-    writeToLeague("rallyStates/" + selectedMatchId, { sets: state.sets, log: state.log });
-  }
-
-  function cacheRallyState(state) {
-    if (!selectedMatchId) return;
+  function persistRallyState(matchId, state) {
+    if (!matchId) return;
+    writeToLeague("rallyStates/" + matchId, { sets: state.sets, log: state.log });
     remoteState.rallyStates = remoteState.rallyStates || {};
-    remoteState.rallyStates[selectedMatchId] = { sets: state.sets, log: state.log };
+    remoteState.rallyStates[matchId] = { sets: state.sets, log: state.log };
   }
 
   function renderMatchSelect() {
@@ -2812,7 +2842,7 @@
     selectEl.value = selectedName || "";
   }
 
-  function buildSetRallyTable(setIndex, state, isAdmin) {
+  function buildSetRallyTable(setIndex, state, isAdmin, matchId, editingIndex, onEditRequest, onUpdate) {
     const entries = [];
     state.log.forEach((entry, fullIndex) => {
       const entrySet = entry.setIndex === undefined ? 0 : entry.setIndex;
@@ -2853,7 +2883,7 @@
     entries.forEach(({ entry, fullIndex }) => {
       const tr = document.createElement("tr");
 
-      if (isAdmin && fullIndex === editingRallyIndex) {
+      if (isAdmin && fullIndex === editingIndex) {
         const teamCell = document.createElement("td");
         const teamSelect = document.createElement("select");
         [state.teamA, state.teamB].forEach((team) => {
@@ -2892,7 +2922,7 @@
         saveBtn.className = "table-action-btn";
         saveBtn.textContent = "Save";
         saveBtn.addEventListener("click", () => {
-          const newState = JSON.parse(JSON.stringify(loadRallyState()));
+          const newState = JSON.parse(JSON.stringify(state));
           const target = newState.log[fullIndex];
           const targetSetIndex = target.setIndex === undefined ? 0 : target.setIndex;
 
@@ -2902,10 +2932,9 @@
 
           recomputeSetScores(newState, targetSetIndex);
 
-          editingRallyIndex = -1;
-          saveRallyState(newState);
-          cacheRallyState(newState);
-          renderAll();
+          onEditRequest(-1);
+          persistRallyState(matchId, newState);
+          onUpdate();
         });
 
         const cancelBtn = document.createElement("button");
@@ -2913,8 +2942,8 @@
         cancelBtn.className = "table-action-btn";
         cancelBtn.textContent = "Cancel";
         cancelBtn.addEventListener("click", () => {
-          editingRallyIndex = -1;
-          renderAll();
+          onEditRequest(-1);
+          onUpdate();
         });
 
         actionsCell.appendChild(saveBtn);
@@ -2956,8 +2985,8 @@
           editBtn.className = "table-action-btn";
           editBtn.textContent = "Edit";
           editBtn.addEventListener("click", () => {
-            editingRallyIndex = fullIndex;
-            renderAll();
+            onEditRequest(fullIndex);
+            onUpdate();
           });
 
           const removeBtn = document.createElement("button");
@@ -2965,7 +2994,7 @@
           removeBtn.className = "table-action-btn remove-btn";
           removeBtn.textContent = "Remove";
           removeBtn.addEventListener("click", () => {
-            const newState = JSON.parse(JSON.stringify(loadRallyState()));
+            const newState = JSON.parse(JSON.stringify(state));
             const removedEntry = newState.log[fullIndex];
             const removedSetIndex = removedEntry.setIndex === undefined ? 0 : removedEntry.setIndex;
             const targetSet = newState.sets[removedSetIndex];
@@ -2983,10 +3012,9 @@
 
             recomputeSetScores(newState, removedSetIndex);
 
-            editingRallyIndex = -1;
-            saveRallyState(newState);
-            cacheRallyState(newState);
-            renderAll();
+            onEditRequest(-1);
+            persistRallyState(matchId, newState);
+            onUpdate();
           });
 
           actionsCell.appendChild(editBtn);
@@ -3004,18 +3032,18 @@
     return wrap;
   }
 
-  function renderRallyLogSets(containerId, state, isAdmin) {
+  function renderRallyLogSets(containerId, state, isAdmin, matchId, editingIndex, onEditRequest, onUpdate) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = "";
     for (let i = 0; i < state.sets.length; i++) {
-      container.appendChild(buildSetRallyTable(i, state, isAdmin));
+      container.appendChild(buildSetRallyTable(i, state, isAdmin, matchId, editingIndex, onEditRequest, onUpdate));
     }
   }
 
-  function renderRallyLog(state) {
-    renderRallyLogSets("rallyLogContainer", state, true);
-    renderRallyLogSets("rallyLogContainerGuest", state, false);
+  function renderRallyLog(state, matchId) {
+    renderRallyLogSets("rallyLogContainer", state, true, matchId, editingRallyIndex, (idx) => { editingRallyIndex = idx; }, renderAll);
+    renderRallyLogSets("rallyLogContainerGuest", state, false, matchId, -1, () => {}, () => {});
   }
 
   function buildWhatsAppLink(message) {
@@ -3169,7 +3197,7 @@
     const state = loadRallyState();
     renderScoreboard(document.getElementById("setScoresAdmin"), state);
     renderScoreboard(document.getElementById("setScoresGuest"), state);
-    renderRallyLog(state);
+    renderRallyLog(state, selectedMatchId);
 
     const winner = computeMatchWinner(state);
     let matchWinnerText = "Match Winner: " + (winner === "TBD" ? "TBD" : displayName(winner));
@@ -3279,8 +3307,7 @@
         notes
       });
 
-      saveRallyState(state);
-      cacheRallyState(state);
+      persistRallyState(selectedMatchId, state);
       renderAll();
       resetRallyEntryFields();
     });
@@ -3323,8 +3350,7 @@
 
   document.getElementById("confirmResetYes").addEventListener("click", () => {
     const resetState = defaultRallyState();
-    saveRallyState(resetState);
-    cacheRallyState(resetState);
+    persistRallyState(selectedMatchId, resetState);
     if (selectedMatchId) delete milestoneTracker[selectedMatchId];
     renderAll();
     resetMatchConfirmModal.classList.remove("open");
@@ -3341,7 +3367,7 @@
     const text = activeLeagueId
       ? " Active league: " + (remoteState.name || activeLeagueId)
       : " No active league yet — create one below.";
-    ["activeLeagueLabel", "activeLeagueLabelScoreUpdates"].forEach((id) => {
+    ["activeLeagueLabel", "activeLeagueLabelScoreUpdates", "activeLeagueLabelPreviousResults"].forEach((id) => {
       const label = document.getElementById(id);
       if (label) label.textContent = text;
     });
@@ -3467,6 +3493,107 @@
         });
       }
     }
+  }
+
+  function getCompletedMatchIds() {
+    const schedule = remoteState.schedule || {};
+    const rallyStates = remoteState.rallyStates || {};
+    const defaults = defaultRallyState();
+    return getSortedScheduleIds().filter((id) => {
+      const match = schedule[id];
+      const saved = rallyStates[id] || {};
+      const state = {
+        teamA: match.teamA,
+        teamB: match.teamB,
+        sets: saved.sets || defaults.sets,
+        log: saved.log || []
+      };
+      return computeMatchWinner(state) !== "TBD";
+    });
+  }
+
+  function renderPreviousMatchDetails(matchId) {
+    const container = document.getElementById("previousMatchDetails");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (!matchId) {
+      container.innerHTML = '<p class="section-note">Select a completed match above to see its results.</p>';
+      return;
+    }
+
+    const schedule = remoteState.schedule || {};
+    const match = schedule[matchId];
+    if (!match) {
+      container.innerHTML = '<p class="section-note">This match is no longer available.</p>';
+      return;
+    }
+
+    const saved = (remoteState.rallyStates && remoteState.rallyStates[matchId]) || {};
+    const defaults = defaultRallyState();
+    const state = {
+      teamA: match.teamA,
+      teamB: match.teamB,
+      sets: saved.sets || defaults.sets,
+      log: saved.log || []
+    };
+
+    const winner = computeMatchWinner(state);
+    const mp = computeMatchPoints(state);
+
+    const banner = document.createElement("div");
+    banner.className = "match-winner-banner";
+    banner.textContent = "Match Winner: " + displayName(winner) +
+      (mp ? " (" + displayName(state.teamA) + " " + mp[state.teamA] + " MP – " +
+        displayName(state.teamB) + " " + mp[state.teamB] + " MP)" : "");
+    container.appendChild(banner);
+
+    const scoreboard = document.createElement("div");
+    scoreboard.className = "set-scores";
+    container.appendChild(scoreboard);
+    renderScoreboard(scoreboard, state);
+
+    const isAdmin = sessionStorage.getItem("role") === "admin";
+    for (let i = 0; i < state.sets.length; i++) {
+      if (state.sets[i].rallies > 0) {
+        container.appendChild(buildSetRallyTable(
+          i, state, isAdmin, matchId, previousResultsEditingIndex,
+          (idx) => { previousResultsEditingIndex = idx; },
+          () => renderPreviousMatchSelect()
+        ));
+      }
+    }
+  }
+
+  function renderPreviousMatchSelect() {
+    const select = document.getElementById("previousMatchSelect");
+    if (!select) return;
+
+    const schedule = remoteState.schedule || {};
+    const scheduleIds = getSortedScheduleIds();
+    const completedIds = getCompletedMatchIds();
+    const currentValue = select.value;
+
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = completedIds.length ? "Select a match" : "No completed matches yet";
+    select.appendChild(placeholder);
+    select.disabled = !completedIds.length;
+
+    completedIds.forEach((id) => {
+      const match = schedule[id];
+      const matchNumber = scheduleIds.indexOf(id) + 1;
+      const dateLabel = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = "Match " + matchNumber + ": " + displayName(match.teamA) + " vs " +
+        displayName(match.teamB) + " — " + dateLabel;
+      select.appendChild(option);
+    });
+
+    select.value = completedIds.includes(currentValue) ? currentValue : "";
+    renderPreviousMatchDetails(select.value);
   }
 
   function renderPublicSchedule() {
