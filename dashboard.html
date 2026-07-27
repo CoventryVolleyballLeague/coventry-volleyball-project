@@ -549,16 +549,8 @@
     visibility: visible;
   }
 
-  .feedback-admin-view {
-    display: none;
-  }
-
   body.role-admin .feedback-guest-view {
     display: none;
-  }
-
-  body.role-admin .feedback-admin-view {
-    display: block;
   }
 
   .feedback-item {
@@ -597,6 +589,138 @@
 
   .feedback-item-delete {
     margin-top: 0.75rem;
+  }
+
+  .feedback-item-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+  }
+
+  .feedback-status-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+  }
+
+  .feedback-status-badge.status-open {
+    background: #fdf1da;
+    color: #9a6b00;
+  }
+
+  .feedback-status-badge.status-completed {
+    background: #dff5e3;
+    color: #1e7d34;
+  }
+
+  .feedback-status-select {
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 2px solid #d8d0bf;
+    background: white;
+    color: var(--navy);
+    cursor: pointer;
+  }
+
+  .feedback-heart-btn {
+    font-family: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--muted, #6b7280);
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .feedback-heart-btn:hover {
+    background: var(--cream);
+  }
+
+  .feedback-heart-btn.is-liked {
+    color: #d32f2f;
+  }
+
+  .feedback-comments {
+    margin-top: 0.9rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f0ebe1;
+  }
+
+  .feedback-comment {
+    padding: 0.55rem 0;
+    border-bottom: 1px dashed #f0ebe1;
+  }
+
+  .feedback-comment:last-child {
+    border-bottom: none;
+  }
+
+  .feedback-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .feedback-comment-name {
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 0.85rem;
+  }
+
+  .feedback-comment-name.is-admin {
+    color: var(--gold);
+  }
+
+  .feedback-comment-date {
+    font-size: 0.72rem;
+    color: var(--muted, #6b7280);
+  }
+
+  .feedback-comment-message {
+    font-size: 0.88rem;
+    white-space: pre-wrap;
+    margin-bottom: 0.3rem;
+  }
+
+  .feedback-comment-form {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .feedback-comment-form input,
+  .feedback-comment-form textarea {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid #d8d0bf;
+    border-radius: 8px;
+    background: white;
+    color: var(--text);
+  }
+
+  .feedback-comment-form textarea {
+    resize: vertical;
+    min-height: 60px;
   }
 
   .schedule-row-actions button {
@@ -1524,10 +1648,8 @@
         </form>
       </div>
 
-      <div class="feedback-admin-view">
-        <p class="section-note">Feedback submitted by guests appears here, most recent first.</p>
-        <div id="feedbackInboxList"></div>
-      </div>
+      <p class="section-note">Feedback from the community, most recent first. Reply below to start a conversation.</p>
+      <div id="feedbackInboxList"></div>
     </section>
 
     <section class="page-section" id="settings">
@@ -2063,6 +2185,38 @@
     });
   }
 
+  const LIKED_FEEDBACK_KEY = "cvlLikedFeedbackIds";
+  const LIKED_COMMENT_KEY = "cvlLikedCommentIds";
+
+  function getLikedSet(storageKey) {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]"));
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  function toggleLikedId(storageKey, id) {
+    const liked = getLikedSet(storageKey);
+    const willLike = !liked.has(id);
+    if (willLike) {
+      liked.add(id);
+    } else {
+      liked.delete(id);
+    }
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(liked)));
+    return willLike;
+  }
+
+  function buildHeartButton(currentLikes, isLiked, onToggle) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "feedback-heart-btn" + (isLiked ? " is-liked" : "");
+    btn.textContent = (isLiked ? "❤️" : "🤍") + " " + (currentLikes || 0);
+    btn.addEventListener("click", onToggle);
+    return btn;
+  }
+
   function renderFeedbackInbox(feedbackData) {
     const container = document.getElementById("feedbackInboxList");
     if (!container) return;
@@ -2074,6 +2228,8 @@
       return;
     }
 
+    const isAdmin = sessionStorage.getItem("role") === "admin";
+
     ids
       .sort((a, b) => (feedbackData[b].submittedAt || 0) - (feedbackData[a].submittedAt || 0))
       .forEach((id) => {
@@ -2082,22 +2238,148 @@
         item.className = "feedback-item";
 
         const dateLabel = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString() : "";
+        const status = entry.status === "completed" ? "completed" : "open";
 
-        item.innerHTML =
-          '<div class="feedback-item-header">' +
-            '<span class="feedback-item-name">' + escapeHtml(entry.name || "Anonymous") + "</span>" +
-            '<span class="feedback-item-date">' + escapeHtml(dateLabel) + "</span>" +
-          "</div>" +
-          '<div class="feedback-item-message">' + escapeHtml(entry.message || "") + "</div>";
+        const header = document.createElement("div");
+        header.className = "feedback-item-header";
+        header.innerHTML =
+          '<span class="feedback-item-name">' + escapeHtml(entry.name || "Anonymous") + "</span>" +
+          '<span class="feedback-item-date">' + escapeHtml(dateLabel) + "</span>";
+        item.appendChild(header);
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.type = "button";
-        deleteBtn.className = "table-action-btn remove-btn feedback-item-delete";
-        deleteBtn.textContent = "Delete";
-        deleteBtn.addEventListener("click", () => {
-          remove(ref(db, "feedback/" + id));
+        const message = document.createElement("div");
+        message.className = "feedback-item-message";
+        message.textContent = entry.message || "";
+        item.appendChild(message);
+
+        const meta = document.createElement("div");
+        meta.className = "feedback-item-meta";
+
+        if (isAdmin) {
+          const statusSelect = document.createElement("select");
+          statusSelect.className = "feedback-status-select";
+          [["open", "Open"], ["completed", "Completed"]].forEach(([value, label]) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = label;
+            statusSelect.appendChild(option);
+          });
+          statusSelect.value = status;
+          statusSelect.addEventListener("change", () => {
+            set(ref(db, "feedback/" + id + "/status"), statusSelect.value);
+          });
+          meta.appendChild(statusSelect);
+        } else {
+          const badge = document.createElement("span");
+          badge.className = "feedback-status-badge status-" + status;
+          badge.textContent = status === "completed" ? "Completed" : "Open";
+          meta.appendChild(badge);
+        }
+
+        const likedFeedback = getLikedSet(LIKED_FEEDBACK_KEY);
+        const heartBtn = buildHeartButton(entry.likes, likedFeedback.has(id), () => {
+          const willLike = toggleLikedId(LIKED_FEEDBACK_KEY, id);
+          const newCount = Math.max(0, (entry.likes || 0) + (willLike ? 1 : -1));
+          set(ref(db, "feedback/" + id + "/likes"), newCount);
         });
-        item.appendChild(deleteBtn);
+        meta.appendChild(heartBtn);
+
+        item.appendChild(meta);
+
+        if (isAdmin) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "table-action-btn remove-btn feedback-item-delete";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.addEventListener("click", () => {
+            remove(ref(db, "feedback/" + id));
+          });
+          item.appendChild(deleteBtn);
+        }
+
+        const commentsWrap = document.createElement("div");
+        commentsWrap.className = "feedback-comments";
+
+        const comments = entry.comments || {};
+        const likedComments = getLikedSet(LIKED_COMMENT_KEY);
+        Object.keys(comments)
+          .sort((a, b) => (comments[a].submittedAt || 0) - (comments[b].submittedAt || 0))
+          .forEach((commentId) => {
+            const comment = comments[commentId];
+            const isCommentAdmin = comment.authorRole === "admin";
+            const commentEl = document.createElement("div");
+            commentEl.className = "feedback-comment";
+
+            const cHeader = document.createElement("div");
+            cHeader.className = "feedback-comment-header";
+            cHeader.innerHTML =
+              '<span class="feedback-comment-name' + (isCommentAdmin ? " is-admin" : "") + '">' +
+                escapeHtml(isCommentAdmin ? "Admin" : (comment.name || "Guest")) +
+              "</span>" +
+              '<span class="feedback-comment-date">' +
+                escapeHtml(comment.submittedAt ? new Date(comment.submittedAt).toLocaleString() : "") +
+              "</span>";
+            commentEl.appendChild(cHeader);
+
+            const cMessage = document.createElement("div");
+            cMessage.className = "feedback-comment-message";
+            cMessage.textContent = comment.message || "";
+            commentEl.appendChild(cMessage);
+
+            const commentLikeKey = id + "_" + commentId;
+            const cHeart = buildHeartButton(comment.likes, likedComments.has(commentLikeKey), () => {
+              const willLike = toggleLikedId(LIKED_COMMENT_KEY, commentLikeKey);
+              const newCount = Math.max(0, (comment.likes || 0) + (willLike ? 1 : -1));
+              set(ref(db, "feedback/" + id + "/comments/" + commentId + "/likes"), newCount);
+            });
+            commentEl.appendChild(cHeart);
+
+            commentsWrap.appendChild(commentEl);
+          });
+
+        item.appendChild(commentsWrap);
+
+        const commentForm = document.createElement("form");
+        commentForm.className = "feedback-comment-form";
+
+        let nameInput = null;
+        if (!isAdmin) {
+          nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.placeholder = "Your name";
+          nameInput.required = true;
+          commentForm.appendChild(nameInput);
+        }
+
+        const commentInput = document.createElement("textarea");
+        commentInput.rows = 2;
+        commentInput.placeholder = isAdmin ? "Reply as Admin…" : "Write a comment…";
+        commentInput.required = true;
+        commentForm.appendChild(commentInput);
+
+        const postBtn = document.createElement("button");
+        postBtn.type = "submit";
+        postBtn.className = "btn-save-rally";
+        postBtn.textContent = "Post Comment";
+        commentForm.appendChild(postBtn);
+
+        commentForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const commentName = isAdmin ? "Admin" : (nameInput.value || "").trim();
+          const commentMessage = commentInput.value.trim();
+          if (!commentMessage || !commentName) return;
+
+          set(ref(db, "feedback/" + id + "/comments/c" + Date.now()), {
+            name: commentName,
+            message: commentMessage,
+            authorRole: isAdmin ? "admin" : "guest",
+            submittedAt: Date.now()
+          });
+
+          commentForm.reset();
+        });
+
+        item.appendChild(commentForm);
 
         container.appendChild(item);
       });
