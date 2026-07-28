@@ -1647,8 +1647,8 @@
       <h1>Schedule</h1>
 
       <div class="field" style="max-width: 360px;">
-        <label for="scheduleLeagueSelect">Viewing League</label>
-        <select id="scheduleLeagueSelect" class="view-league-select"></select>
+        <label for="scheduleViewLeagueSelect">Viewing League</label>
+        <select id="scheduleViewLeagueSelect" class="view-league-select"></select>
       </div>
 
       <div class="schedule-list" id="publicScheduleList"></div>
@@ -1716,12 +1716,17 @@
 
       <h2 class="section-heading">Team Settings</h2>
       <div class="settings-actions">
-        <button class="settings-action-btn" id="addRemovePlayerBtn">Add/Remove Player</button>
-        <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
-        <button class="settings-action-btn" id="changeCaptainBtn">Change Team Captains</button>
-        <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createTeamBtn">Create a new Team</button>
+        <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="removeTeamBtn">Remove a Team</button>
+        <button class="settings-action-btn" id="changeCaptainBtn">Change Team Captains</button>
+      </div>
+
+      <h2 class="section-heading">Player Settings</h2>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="addRemovePlayerBtn">Add/Remove Player</button>
+        <button class="settings-action-btn" id="tradePlayerBtn">Trade a Player</button>
+        <button class="settings-action-btn" id="assignPlayersBtn">Assign Players to a Team</button>
         <button class="settings-action-btn" id="unassignPlayerBtn">Unassign a Player</button>
       </div>
 
@@ -1845,6 +1850,27 @@
     <div class="modal-actions">
       <button class="btn-remove-player" id="confirmUnassignYes">Yes</button>
       <button class="btn-clear-rally" id="confirmUnassignNo">No</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="assignPlayersModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Assign Players to a Team</h2>
+
+    <div class="field">
+      <label>Select Players</label>
+      <div id="assignPlayersList" class="league-status-list"></div>
+    </div>
+
+    <div class="field">
+      <label for="assignPlayersTeamSelect">Select a Team</label>
+      <select id="assignPlayersTeamSelect"></select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveAssignPlayersBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelAssignPlayersBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -3152,6 +3178,55 @@
     closeUnassignPlayerModal();
   });
 
+  const assignPlayersModal = document.getElementById("assignPlayersModal");
+  const assignPlayersList = document.getElementById("assignPlayersList");
+  const assignPlayersTeamSelect = document.getElementById("assignPlayersTeamSelect");
+
+  function populateAssignPlayersOptions() {
+    assignPlayersList.innerHTML = "";
+    getEffectivePlayers()
+      .filter((p) => p.team === "Not Yet Decided")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        assignPlayersList.appendChild(buildPlayerCheckboxRow(p.name, p.name));
+      });
+    populateTeamSelect(assignPlayersTeamSelect, false);
+  }
+
+  function closeAssignPlayersModal() {
+    assignPlayersModal.classList.remove("open");
+    assignPlayersList.innerHTML = "";
+  }
+
+  const assignPlayersBtn = document.getElementById("assignPlayersBtn");
+  if (assignPlayersBtn) {
+    assignPlayersBtn.addEventListener("click", () => {
+      populateAssignPlayersOptions();
+      assignPlayersModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelAssignPlayersBtn").addEventListener("click", closeAssignPlayersModal);
+
+  assignPlayersModal.addEventListener("click", (event) => {
+    if (event.target === assignPlayersModal) closeAssignPlayersModal();
+  });
+
+  document.getElementById("saveAssignPlayersBtn").addEventListener("click", () => {
+    const selected = Array.from(assignPlayersList.querySelectorAll(".player-checkbox:checked")).map((cb) => cb.value);
+    const team = assignPlayersTeamSelect.value;
+    if (!selected.length || !team) return;
+
+    const overrides = Object.assign({}, getTeamOverrides());
+    selected.forEach((name) => {
+      overrides[name] = team;
+    });
+    writeToLeague("teamOverrides", overrides);
+
+    renderRosters();
+    closeAssignPlayersModal();
+  });
+
   const tradePlayerModal = document.getElementById("tradePlayerModal");
   const tradePlayerSelect = document.getElementById("tradePlayerSelect");
   const tradeCurrentTeam = document.getElementById("tradeCurrentTeam");
@@ -4075,7 +4150,7 @@
 
   function renderViewLeagueSelectors() {
     const activeIds = getActiveLeagueIds();
-    ["teamsLeagueSelect", "scheduleLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+    ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
       const select = document.getElementById(selectId);
       if (!select) return;
 
@@ -4110,7 +4185,7 @@
     renderPreviousMatchSelect();
   }
 
-  ["teamsLeagueSelect", "scheduleLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+  ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
     const select = document.getElementById(selectId);
     if (select) {
       select.addEventListener("change", () => onViewLeagueChanged(select.value));
