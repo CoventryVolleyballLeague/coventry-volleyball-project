@@ -423,6 +423,37 @@
     color: var(--navy);
   }
 
+  .modal-box label.player-select-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--cream);
+    border: 1px solid #e5e0d5;
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--navy);
+    white-space: nowrap;
+  }
+
+  .player-select-row input[type="checkbox"] {
+    flex-shrink: 0;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+  }
+
+  .player-select-row span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .league-status-options {
     display: flex;
     gap: 1.25rem;
@@ -1674,6 +1705,7 @@
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createTeamBtn">Create a new Team</button>
         <button class="settings-action-btn" id="removeTeamBtn">Remove a Team</button>
+        <button class="settings-action-btn" id="unassignPlayerBtn">Unassign a Player</button>
       </div>
 
       <h2 class="section-heading">Schedule Settings</h2>
@@ -1722,6 +1754,7 @@
       <div class="field">
         <label for="newPlayerName">Player Name</label>
         <input type="text" id="newPlayerName" placeholder="e.g. Sammal">
+        <p class="field-error" id="newPlayerNameError" style="display: none;"></p>
       </div>
 
       <div class="field">
@@ -1772,6 +1805,33 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="unassignPlayerModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Unassign a Player</h2>
+
+    <div class="field">
+      <label>Select the Players</label>
+      <div id="unassignPlayerList" class="league-status-list"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveUnassignPlayerBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelUnassignPlayerBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="unassignConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Unassign Players</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;">Do you really want to unassign these players?</p>
+    <div class="modal-actions">
+      <button class="btn-remove-player" id="confirmUnassignYes">Yes</button>
+      <button class="btn-clear-rally" id="confirmUnassignNo">No</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="resetMatchConfirmModal">
   <div class="modal-box">
     <h2 class="modal-title">Reset Match</h2>
@@ -1799,7 +1859,7 @@
     </div>
 
     <div id="createLeagueStep2" style="display: none;">
-      <p class="section-note">Select the teams that should be part of this league.</p>
+      <p class="section-note">Select the Teams that you want to be part of this League</p>
       <div id="createLeagueTeamsList" class="league-status-list"></div>
       <div class="modal-actions">
         <button class="btn-save-rally" id="saveLeagueBtn">Save</button>
@@ -1813,15 +1873,27 @@
   <div class="modal-box">
     <h2 class="modal-title">Create a New Team</h2>
 
-    <div class="field">
-      <label for="newTeamName">Enter New Team Name</label>
-      <input type="text" id="newTeamName" placeholder="e.g. Falcons">
-      <p class="field-error" id="newTeamNameError" style="display: none;">A team with that name already exists.</p>
+    <div id="createTeamStep1">
+      <div class="field">
+        <label for="newTeamName">Enter New Team Name</label>
+        <input type="text" id="newTeamName" placeholder="e.g. Falcons">
+        <p class="field-error" id="newTeamNameError" style="display: none;">A team with that name already exists.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="createTeamNextBtn">Next</button>
+        <button class="btn-clear-rally" id="cancelTeamBtn">Cancel</button>
+      </div>
     </div>
 
-    <div class="modal-actions">
-      <button class="btn-save-rally" id="saveTeamBtn">Save</button>
-      <button class="btn-clear-rally" id="cancelTeamBtn">Cancel</button>
+    <div id="createTeamStep2" style="display: none;">
+      <div class="field">
+        <label>Select the Players</label>
+        <div id="createTeamPlayersList" class="league-status-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="saveTeamBtn">Save</button>
+        <button class="btn-clear-rally" id="createTeamBackBtn">Back</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2739,7 +2811,7 @@
       const count = (grouped[team] || []).length;
       const heading = ul.parentElement.querySelector("h2");
       if (heading) {
-        const label = getAllTeamNames().includes(team) ? displayName(team) : "Unassigned Players";
+        const label = team === "Not Yet Decided" ? "Unassigned Players" : displayName(team);
         heading.textContent = label + " (" + count + ")";
       }
     });
@@ -2772,6 +2844,7 @@
   const arpScreens = addRemovePlayerModal.querySelectorAll(".wizard-screen");
   const newPlayerName = document.getElementById("newPlayerName");
   const newPlayerTeam = document.getElementById("newPlayerTeam");
+  const newPlayerNameError = document.getElementById("newPlayerNameError");
   const removePlayerSelect = document.getElementById("removePlayerSelect");
   const removePlayerTeam = document.getElementById("removePlayerTeam");
   const removeConfirmModal = document.getElementById("removeConfirmModal");
@@ -2787,6 +2860,7 @@
     addRemovePlayerModal.classList.remove("open");
     newPlayerName.value = "";
     newPlayerTeam.value = "";
+    newPlayerNameError.style.display = "none";
     removePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
     removePlayerTeam.textContent = "—";
     showArpScreen("arpChoiceScreen");
@@ -2850,6 +2924,18 @@
       return;
     }
 
+    // A player name can only exist once — either on a team or in the
+    // Unassigned pool, never both and never duplicated.
+    const existing = getEffectivePlayers().find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      newPlayerNameError.textContent = existing.team === "Not Yet Decided"
+        ? 'This player is already in the Unassigned pool.'
+        : 'This player is already assigned to "' + displayName(existing.team) + '" team.';
+      newPlayerNameError.style.display = "block";
+      return;
+    }
+    newPlayerNameError.style.display = "none";
+
     const players = getAddedPlayers().concat([{ name, team }]);
     writeToLeague("addedPlayers", players);
 
@@ -2898,6 +2984,92 @@
     closeRemoveConfirmModal();
     addRemovePlayerModal.classList.add("open");
     showArpScreen("arpRemoveScreen");
+  });
+
+  function buildPlayerCheckboxRow(name, labelText) {
+    const row = document.createElement("label");
+    row.className = "player-select-row";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = name;
+    checkbox.className = "player-checkbox";
+    const text = document.createElement("span");
+    text.textContent = labelText;
+    row.appendChild(checkbox);
+    row.appendChild(text);
+    return row;
+  }
+
+  const unassignPlayerModal = document.getElementById("unassignPlayerModal");
+  const unassignPlayerList = document.getElementById("unassignPlayerList");
+  const unassignConfirmModal = document.getElementById("unassignConfirmModal");
+  let pendingUnassignNames = [];
+
+  function populateUnassignPlayerOptions() {
+    unassignPlayerList.innerHTML = "";
+    getEffectivePlayers()
+      .filter((p) => p.team !== "Not Yet Decided")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        unassignPlayerList.appendChild(buildPlayerCheckboxRow(p.name, p.name + " (" + displayName(p.team) + ")"));
+      });
+  }
+
+  function closeUnassignPlayerModal() {
+    unassignPlayerModal.classList.remove("open");
+    unassignPlayerList.innerHTML = "";
+  }
+
+  const unassignPlayerBtn = document.getElementById("unassignPlayerBtn");
+  if (unassignPlayerBtn) {
+    unassignPlayerBtn.addEventListener("click", () => {
+      populateUnassignPlayerOptions();
+      unassignPlayerModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelUnassignPlayerBtn").addEventListener("click", closeUnassignPlayerModal);
+
+  unassignPlayerModal.addEventListener("click", (event) => {
+    if (event.target === unassignPlayerModal) closeUnassignPlayerModal();
+  });
+
+  document.getElementById("saveUnassignPlayerBtn").addEventListener("click", () => {
+    const selected = Array.from(unassignPlayerList.querySelectorAll(".player-checkbox:checked")).map((cb) => cb.value);
+    if (!selected.length) return;
+
+    pendingUnassignNames = selected;
+    unassignPlayerModal.classList.remove("open");
+    unassignConfirmModal.classList.add("open");
+  });
+
+  function closeUnassignConfirmModal() {
+    unassignConfirmModal.classList.remove("open");
+    pendingUnassignNames = [];
+  }
+
+  unassignConfirmModal.addEventListener("click", (event) => {
+    if (event.target === unassignConfirmModal) {
+      closeUnassignConfirmModal();
+      unassignPlayerModal.classList.add("open");
+    }
+  });
+
+  document.getElementById("confirmUnassignNo").addEventListener("click", () => {
+    closeUnassignConfirmModal();
+    unassignPlayerModal.classList.add("open");
+  });
+
+  document.getElementById("confirmUnassignYes").addEventListener("click", () => {
+    const overrides = Object.assign({}, getTeamOverrides());
+    pendingUnassignNames.forEach((name) => {
+      overrides[name] = "Not Yet Decided";
+    });
+    writeToLeague("teamOverrides", overrides);
+
+    renderRosters();
+    closeUnassignConfirmModal();
+    closeUnassignPlayerModal();
   });
 
   const tradePlayerModal = document.getElementById("tradePlayerModal");
@@ -4182,19 +4354,39 @@
     getAllTeamNames().forEach((team) => {
       const row = document.createElement("div");
       row.className = "league-status-row";
-      const label = document.createElement("label");
-      label.style.display = "flex";
-      label.style.alignItems = "center";
-      label.style.gap = "0.6rem";
-      label.style.cursor = "pointer";
-      label.style.width = "100%";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = team;
-      checkbox.checked = true;
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(displayName(team)));
-      row.appendChild(label);
+
+      const name2 = document.createElement("div");
+      name2.className = "league-status-name";
+      name2.textContent = displayName(team);
+
+      const options = document.createElement("div");
+      options.className = "league-status-options";
+
+      const yesRadio = document.createElement("input");
+      yesRadio.type = "radio";
+      yesRadio.name = "createLeagueTeam_" + team;
+      yesRadio.checked = true;
+      yesRadio.dataset.team = team;
+      yesRadio.className = "create-league-team-yes";
+
+      const yesLabel = document.createElement("label");
+      yesLabel.appendChild(yesRadio);
+      yesLabel.appendChild(document.createTextNode("Yes"));
+
+      const noRadio = document.createElement("input");
+      noRadio.type = "radio";
+      noRadio.name = "createLeagueTeam_" + team;
+      noRadio.dataset.team = team;
+      noRadio.className = "create-league-team-no";
+
+      const noLabel = document.createElement("label");
+      noLabel.appendChild(noRadio);
+      noLabel.appendChild(document.createTextNode("No"));
+
+      options.appendChild(yesLabel);
+      options.appendChild(noLabel);
+      row.appendChild(name2);
+      row.appendChild(options);
       createLeagueTeamsList.appendChild(row);
     });
 
@@ -4212,8 +4404,8 @@
     if (!name) return;
 
     const teams = {};
-    createLeagueTeamsList.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-      teams[checkbox.value] = true;
+    createLeagueTeamsList.querySelectorAll(".create-league-team-yes:checked").forEach((el) => {
+      teams[el.dataset.team] = true;
     });
 
     const id = slugify(name) + "-" + Date.now();
@@ -4231,16 +4423,24 @@
   const createTeamModal = document.getElementById("createTeamModal");
   const newTeamName = document.getElementById("newTeamName");
   const newTeamNameError = document.getElementById("newTeamNameError");
+  const createTeamStep1 = document.getElementById("createTeamStep1");
+  const createTeamStep2 = document.getElementById("createTeamStep2");
+  const createTeamPlayersList = document.getElementById("createTeamPlayersList");
 
   function closeCreateTeamModal() {
     createTeamModal.classList.remove("open");
     newTeamName.value = "";
     newTeamNameError.style.display = "none";
+    createTeamStep1.style.display = "";
+    createTeamStep2.style.display = "none";
+    createTeamPlayersList.innerHTML = "";
   }
 
   const createTeamBtn = document.getElementById("createTeamBtn");
   if (createTeamBtn) {
     createTeamBtn.addEventListener("click", () => {
+      createTeamStep1.style.display = "";
+      createTeamStep2.style.display = "none";
       createTeamModal.classList.add("open");
     });
   }
@@ -4251,7 +4451,7 @@
     if (event.target === createTeamModal) closeCreateTeamModal();
   });
 
-  document.getElementById("saveTeamBtn").addEventListener("click", () => {
+  document.getElementById("createTeamNextBtn").addEventListener("click", () => {
     const name = newTeamName.value.trim();
     if (!name) return;
 
@@ -4261,11 +4461,41 @@
     }
     newTeamNameError.style.display = "none";
 
+    createTeamPlayersList.innerHTML = "";
+    getEffectivePlayers()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((p) => {
+        const label = p.name + " (" + (p.team === "Not Yet Decided" ? "Unassigned" : displayName(p.team)) + ")";
+        createTeamPlayersList.appendChild(buildPlayerCheckboxRow(p.name, label));
+      });
+
+    createTeamStep1.style.display = "none";
+    createTeamStep2.style.display = "";
+  });
+
+  document.getElementById("createTeamBackBtn").addEventListener("click", () => {
+    createTeamStep2.style.display = "none";
+    createTeamStep1.style.display = "";
+  });
+
+  document.getElementById("saveTeamBtn").addEventListener("click", () => {
+    const name = newTeamName.value.trim();
+    if (!name) return;
+
     const id = slugify(name);
     set(ref(db, "teams/" + id), {
       name,
       createdAt: Date.now()
     });
+
+    const selectedPlayers = Array.from(createTeamPlayersList.querySelectorAll(".player-checkbox:checked")).map((cb) => cb.value);
+    if (selectedPlayers.length) {
+      const overrides = Object.assign({}, getTeamOverrides());
+      selectedPlayers.forEach((playerName) => {
+        overrides[playerName] = name;
+      });
+      writeToLeague("teamOverrides", overrides);
+    }
 
     closeCreateTeamModal();
   });
