@@ -1348,6 +1348,7 @@
     <a class="nav-link active" href="#leagues" data-section="leagues">Leagues</a>
     <a class="nav-link live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
     <a class="nav-link" href="#previous-results" data-section="previous-results">Previous Match Results</a>
+    <a class="nav-link" href="#mvp-standings" data-section="mvp-standings">MVP Standings</a>
     <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
@@ -1566,6 +1567,46 @@
       </div>
 
       <div id="previousMatchDetails"></div>
+    </section>
+
+    <section class="page-section" id="mvp-standings">
+      <h1>MVP Standings</h1>
+      <p class="section-note">Player point totals and tournament awards, tallied from every recorded rally in the league.</p>
+
+      <div class="field" style="max-width: 360px;">
+        <label for="mvpStandingsLeagueSelect">Select a League</label>
+        <select id="mvpStandingsLeagueSelect" class="view-league-select"></select>
+      </div>
+
+      <h2 class="section-heading">Top 10 MVP Rankings</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="mvpRankingsBody"></tbody>
+        </table>
+      </div>
+
+      <h2 class="section-heading">Tournament Leaders</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Award</th>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody id="tournamentLeadersBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="page-section" id="teams">
@@ -2455,6 +2496,7 @@
     renderLeaguesTab();
     renderViewLeagueSelectors();
     renderPreviousMatchSelect();
+    renderMvpStandings();
   });
 
   const previousMatchSelectEl = document.getElementById("previousMatchSelect");
@@ -4150,7 +4192,7 @@
 
   function renderViewLeagueSelectors() {
     const activeIds = getActiveLeagueIds();
-    ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+    ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect", "mvpStandingsLeagueSelect"].forEach((selectId) => {
       const select = document.getElementById(selectId);
       if (!select) return;
 
@@ -4183,9 +4225,10 @@
     renderRosters();
     renderPublicSchedule();
     renderPreviousMatchSelect();
+    renderMvpStandings();
   }
 
-  ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+  ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect", "mvpStandingsLeagueSelect"].forEach((selectId) => {
     const select = document.getElementById(selectId);
     if (select) {
       select.addEventListener("change", () => onViewLeagueChanged(select.value));
@@ -4417,6 +4460,100 @@
 
     select.value = completedIds.includes(currentValue) ? currentValue : "";
     renderPreviousMatchDetails(select.value);
+  }
+
+  function computePlayerStats(leagueData) {
+    const stats = {};
+    const rallyStates = (leagueData && leagueData.rallyStates) || {};
+    Object.keys(rallyStates).forEach((matchId) => {
+      const saved = rallyStates[matchId];
+      if (!saved || !saved.log) return;
+      saved.log.forEach((entry) => {
+        const name = entry.player;
+        if (!name) return;
+        if (!stats[name]) stats[name] = { total: 0, ace: 0, kill: 0, block: 0 };
+        stats[name].total++;
+        if (entry.pointType === "Service Ace") stats[name].ace++;
+        else if (entry.pointType === "Kill / Attack Point") stats[name].kill++;
+        else if (entry.pointType === "Block Point") stats[name].block++;
+      });
+    });
+    return stats;
+  }
+
+  function renderMvpStandings() {
+    const rankingsBody = document.getElementById("mvpRankingsBody");
+    const leadersBody = document.getElementById("tournamentLeadersBody");
+    if (!rankingsBody || !leadersBody) return;
+
+    const stats = computePlayerStats(viewLeagueData);
+    const playerMeta = {};
+    getEffectivePlayersFrom(viewState).forEach((p) => { playerMeta[p.name] = p; });
+
+    const ranked = Object.keys(stats)
+      .map((name) => {
+        const meta = playerMeta[name];
+        return {
+          name,
+          team: meta ? meta.team : null,
+          isCaptain: meta ? meta.isCaptain : false,
+          total: stats[name].total,
+          ace: stats[name].ace,
+          kill: stats[name].kill,
+          block: stats[name].block
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+
+    rankingsBody.innerHTML = "";
+    if (!ranked.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      td.textContent = "No rally points recorded yet for this league.";
+      tr.appendChild(td);
+      rankingsBody.appendChild(tr);
+    } else {
+      ranked.slice(0, 10).forEach((p, i) => {
+        const tr = document.createElement("tr");
+        const nameLabel = p.name + (p.isCaptain ? " (C)" : "");
+        const teamLabel = p.team ? displayNameFor(viewLeagueData, p.team) : "—";
+        tr.innerHTML =
+          "<td>#" + (i + 1) + "</td>" +
+          '<td class="team-cell">' + escapeHtml(nameLabel) + "</td>" +
+          "<td>" + escapeHtml(teamLabel) + "</td>" +
+          "<td>" + p.total + "</td>";
+        rankingsBody.appendChild(tr);
+      });
+    }
+
+    function topBy(key) {
+      return ranked.reduce((best, p) => (p[key] > 0 && (!best || p[key] > best[key]) ? p : best), null);
+    }
+
+    const leaders = [
+      { award: "Best Server", key: "ace" },
+      { award: "Best Striker", key: "kill" },
+      { award: "Best Blocker", key: "block" },
+      { award: "Top Scorer / MVP", key: "total" }
+    ];
+
+    leadersBody.innerHTML = "";
+    leaders.forEach(({ award, key }) => {
+      const winner = topBy(key);
+      const tr = document.createElement("tr");
+      if (!winner) {
+        tr.innerHTML = "<td>" + escapeHtml(award) + "</td><td>—</td><td>—</td><td>—</td>";
+      } else {
+        const teamLabel = winner.team ? displayNameFor(viewLeagueData, winner.team) : "—";
+        tr.innerHTML =
+          "<td>" + escapeHtml(award) + "</td>" +
+          '<td class="team-cell">' + escapeHtml(winner.name + (winner.isCaptain ? " (C)" : "")) + "</td>" +
+          "<td>" + escapeHtml(teamLabel) + "</td>" +
+          "<td>" + winner[key] + "</td>";
+      }
+      leadersBody.appendChild(tr);
+    });
   }
 
   function renderPublicSchedule() {
