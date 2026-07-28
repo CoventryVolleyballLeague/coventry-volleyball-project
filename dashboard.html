@@ -2940,6 +2940,19 @@
     });
   }
 
+  function getGlobalUnassignedPlayers() {
+    const merged = new Map();
+    Object.keys(allLeagues).forEach((id) => {
+      const state = buildLeagueState(allLeagues[id], id);
+      getEffectivePlayersFrom(state)
+        .filter((p) => p.team === "Not Yet Decided")
+        .forEach((p) => {
+          if (!merged.has(p.name)) merged.set(p.name, p);
+        });
+    });
+    return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   function renderRosters() {
     const players = getEffectivePlayersFrom(viewState);
 
@@ -2949,11 +2962,18 @@
 
     const grouped = {};
     players.forEach((p) => {
+      if (p.team === "Not Yet Decided") return;
       if (!grouped[p.team]) grouped[p.team] = [];
       grouped[p.team].push(p);
     });
+    // Unassigned is a global pool merged across every league (not just the
+    // one currently being viewed), since a player with no team shouldn't
+    // disappear just because you switched which league's rosters you're
+    // browsing.
+    grouped["Not Yet Decided"] = getGlobalUnassignedPlayers();
 
     Object.keys(grouped).forEach((team) => {
+      if (team === "Not Yet Decided") return;
       grouped[team].sort((a, b) => {
         const rank = (p) => (p.isCaptain ? 0 : p.isNative ? 1 : 2);
         return rank(a) - rank(b);
