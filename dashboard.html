@@ -1658,15 +1658,27 @@
         Manage league data and rosters. Each action below opens a step-by-step wizard (coming soon).
         <span id="activeLeagueLabel"></span>
       </p>
+      <h2 class="section-heading">League Settings</h2>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
+        <button class="settings-action-btn" id="editLeagueBtn">Edit a League</button>
+        <button class="settings-action-btn" id="removeLeagueBtn">Remove a League</button>
+        <button class="settings-action-btn" id="activateArchiveLeagueBtn">Activate/Archive a League</button>
+      </div>
+
+      <h2 class="section-heading">Team Settings</h2>
       <div class="settings-actions">
         <button class="settings-action-btn" id="addRemovePlayerBtn">Add/Remove Player</button>
         <button class="settings-action-btn" id="tradePlayerBtn">Trade Player</button>
         <button class="settings-action-btn" id="changeCaptainBtn">Change Team Captains</button>
-        <button class="settings-action-btn" id="createLeagueBtn">Create a new League</button>
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
-        <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
-        <button class="settings-action-btn" id="activateArchiveLeagueBtn">Activate/Archive a League</button>
         <button class="settings-action-btn" id="createTeamBtn">Create a new Team</button>
+        <button class="settings-action-btn" id="removeTeamBtn">Remove a Team</button>
+      </div>
+
+      <h2 class="section-heading">Schedule Settings</h2>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
     </section>
 
@@ -1814,6 +1826,56 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="removeTeamModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Remove a Team</h2>
+
+    <div class="field">
+      <label for="removeTeamSelect">Select a Team</label>
+      <select id="removeTeamSelect"></select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveRemoveTeamBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelRemoveTeamBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editLeagueModal">
+  <div class="modal-box" style="max-width: 560px;">
+    <h2 class="modal-title">Edit a League</h2>
+
+    <div class="field">
+      <label for="editLeagueSelect">Select a League</label>
+      <select id="editLeagueSelect"></select>
+    </div>
+
+    <div id="editLeagueTeamsList" class="league-status-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveEditLeagueBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelEditLeagueBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="removeLeagueModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Remove a League</h2>
+
+    <div class="field">
+      <label for="removeLeagueSelect">Select a League</label>
+      <select id="removeLeagueSelect"></select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-save-rally" id="saveRemoveLeagueBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelRemoveLeagueBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="changeTeamNameModal">
   <div class="modal-box">
     <h2 class="modal-title">Change Team Name</h2>
@@ -1935,8 +1997,8 @@
     <h2 class="modal-title">Delete League</h2>
     <p class="section-note" style="margin-bottom: 1.5rem;" id="deleteLeagueMessage">This permanently deletes this league's data. Are you sure?</p>
     <div class="modal-actions">
-      <button class="btn-remove-player" id="confirmDeleteLeagueYes">Yes, Delete</button>
-      <button class="btn-clear-rally" id="confirmDeleteLeagueNo">Cancel</button>
+      <button class="btn-remove-player" id="confirmDeleteLeagueYes">Yes</button>
+      <button class="btn-clear-rally" id="confirmDeleteLeagueNo">No</button>
     </div>
   </div>
 </div>
@@ -2060,6 +2122,7 @@
 
   let allLeagues = {};
   let allTeams = {};
+  let removedTeams = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
   let selectedMatchId = null;
@@ -2073,7 +2136,7 @@
       const teamName = allTeams[key] && allTeams[key].name;
       if (teamName && !names.includes(teamName)) names.push(teamName);
     });
-    return names;
+    return names.filter((team) => !removedTeams[slugify(team)]);
   }
 
   function getLeagueStatus(id) {
@@ -2448,6 +2511,12 @@
     renderRosters();
   });
 
+  onValue(ref(db, "removedTeams"), (snapshot) => {
+    removedTeams = snapshot.val() || {};
+    renderTeamGrid();
+    renderRosters();
+  });
+
   const feedbackForm = document.getElementById("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", (event) => {
@@ -2632,7 +2701,17 @@
   }
 
   function renderTeamGrid() {
-    getAllTeamNames().forEach((team) => ensureTeamCard(team));
+    const visibleTeams = getAllTeamNames();
+    visibleTeams.forEach((team) => ensureTeamCard(team));
+
+    // Removed teams keep their card in the DOM (so their historical roster
+    // isn't lost) but drop out of view until re-added.
+    document.querySelectorAll(".team-grid .team-card ul[data-team]").forEach((ul) => {
+      const team = ul.dataset.team;
+      if (team === "Not Yet Decided") return;
+      const card = ul.closest(".team-card");
+      if (card) card.style.display = visibleTeams.includes(team) ? "" : "none";
+    });
   }
 
   function renderRosters() {
@@ -2802,9 +2881,13 @@
   });
 
   document.getElementById("confirmRemoveYes").addEventListener("click", () => {
-    const overrides = Object.assign({}, getTeamOverrides());
-    overrides[pendingRemovalName] = "Not Yet Decided";
-    writeToLeague("teamOverrides", overrides);
+    // Remove the player entirely rather than just moving them to
+    // "Not Yet Decided" — they disappear from every roster and dropdown.
+    const removed = getRemovedPlayers().slice();
+    if (!removed.includes(pendingRemovalName)) {
+      removed.push(pendingRemovalName);
+    }
+    writeToLeague("removedPlayers", removed);
 
     renderRosters();
     closeRemoveConfirmModal();
@@ -4187,6 +4270,37 @@
     closeCreateTeamModal();
   });
 
+  const removeTeamModal = document.getElementById("removeTeamModal");
+  const removeTeamSelect = document.getElementById("removeTeamSelect");
+
+  function closeRemoveTeamModal() {
+    removeTeamModal.classList.remove("open");
+    removeTeamSelect.value = "";
+  }
+
+  const removeTeamBtn = document.getElementById("removeTeamBtn");
+  if (removeTeamBtn) {
+    removeTeamBtn.addEventListener("click", () => {
+      populateTeamSelect(removeTeamSelect, false);
+      removeTeamModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelRemoveTeamBtn").addEventListener("click", closeRemoveTeamModal);
+
+  removeTeamModal.addEventListener("click", (event) => {
+    if (event.target === removeTeamModal) closeRemoveTeamModal();
+  });
+
+  document.getElementById("saveRemoveTeamBtn").addEventListener("click", () => {
+    const team = removeTeamSelect.value;
+    if (!team) return;
+
+    set(ref(db, "removedTeams/" + slugify(team)), true);
+
+    closeRemoveTeamModal();
+  });
+
   const changeTeamNameModal = document.getElementById("changeTeamNameModal");
   const renameTeamSelect = document.getElementById("renameTeamSelect");
   const renameTeamInput = document.getElementById("renameTeamInput");
@@ -4474,6 +4588,152 @@
     }
 
     closeDeleteLeagueConfirmModal();
+  });
+
+  const editLeagueModal = document.getElementById("editLeagueModal");
+  const editLeagueSelect = document.getElementById("editLeagueSelect");
+  const editLeagueTeamsList = document.getElementById("editLeagueTeamsList");
+
+  function renderEditLeagueSelect() {
+    editLeagueSelect.innerHTML = '<option value="">Choose a league&hellip;</option>';
+    getSortedLeagueIds().forEach((id) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = (allLeagues[id] && allLeagues[id].name) || id;
+      editLeagueSelect.appendChild(option);
+    });
+  }
+
+  function renderEditLeagueTeams() {
+    editLeagueTeamsList.innerHTML = "";
+    const leagueId = editLeagueSelect.value;
+    if (!leagueId) return;
+
+    const league = allLeagues[leagueId];
+    // Leagues created before team selection existed have no "teams" field —
+    // treat every team as currently included, matching standings behavior.
+    const currentTeams = (league && league.teams) ? Object.keys(league.teams) : getAllTeamNames();
+
+    getAllTeamNames().forEach((team) => {
+      const row = document.createElement("div");
+      row.className = "league-status-row";
+
+      const name = document.createElement("div");
+      name.className = "league-status-name";
+      name.textContent = displayName(team);
+
+      const options = document.createElement("div");
+      options.className = "league-status-options";
+
+      const isIncluded = currentTeams.includes(team);
+
+      const addRadio = document.createElement("input");
+      addRadio.type = "radio";
+      addRadio.name = "editLeagueTeam_" + team;
+      addRadio.checked = isIncluded;
+      addRadio.dataset.team = team;
+      addRadio.className = "edit-league-team-add";
+
+      const addLabel = document.createElement("label");
+      addLabel.appendChild(addRadio);
+      addLabel.appendChild(document.createTextNode("Add"));
+
+      const removeRadio = document.createElement("input");
+      removeRadio.type = "radio";
+      removeRadio.name = "editLeagueTeam_" + team;
+      removeRadio.checked = !isIncluded;
+      removeRadio.dataset.team = team;
+      removeRadio.className = "edit-league-team-remove";
+
+      const removeLabel = document.createElement("label");
+      removeLabel.appendChild(removeRadio);
+      removeLabel.appendChild(document.createTextNode("Remove"));
+
+      options.appendChild(addLabel);
+      options.appendChild(removeLabel);
+      row.appendChild(name);
+      row.appendChild(options);
+      editLeagueTeamsList.appendChild(row);
+    });
+  }
+
+  function closeEditLeagueModal() {
+    editLeagueModal.classList.remove("open");
+    editLeagueSelect.value = "";
+    editLeagueTeamsList.innerHTML = "";
+  }
+
+  const editLeagueBtn = document.getElementById("editLeagueBtn");
+  if (editLeagueBtn) {
+    editLeagueBtn.addEventListener("click", () => {
+      renderEditLeagueSelect();
+      editLeagueTeamsList.innerHTML = "";
+      editLeagueModal.classList.add("open");
+    });
+  }
+
+  editLeagueSelect.addEventListener("change", renderEditLeagueTeams);
+
+  document.getElementById("cancelEditLeagueBtn").addEventListener("click", closeEditLeagueModal);
+
+  editLeagueModal.addEventListener("click", (event) => {
+    if (event.target === editLeagueModal) closeEditLeagueModal();
+  });
+
+  document.getElementById("saveEditLeagueBtn").addEventListener("click", () => {
+    const leagueId = editLeagueSelect.value;
+    if (!leagueId) return;
+
+    const teams = {};
+    editLeagueTeamsList.querySelectorAll(".edit-league-team-add:checked").forEach((el) => {
+      teams[el.dataset.team] = true;
+    });
+
+    set(ref(db, "leagues/" + leagueId + "/teams"), teams);
+
+    closeEditLeagueModal();
+  });
+
+  const removeLeagueModal = document.getElementById("removeLeagueModal");
+  const removeLeagueSelect = document.getElementById("removeLeagueSelect");
+
+  function renderRemoveLeagueSelect() {
+    removeLeagueSelect.innerHTML = '<option value="">Choose a league&hellip;</option>';
+    getSortedLeagueIds().forEach((id) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = (allLeagues[id] && allLeagues[id].name) || id;
+      removeLeagueSelect.appendChild(option);
+    });
+  }
+
+  function closeRemoveLeagueModal() {
+    removeLeagueModal.classList.remove("open");
+    removeLeagueSelect.value = "";
+  }
+
+  const removeLeagueBtn = document.getElementById("removeLeagueBtn");
+  if (removeLeagueBtn) {
+    removeLeagueBtn.addEventListener("click", () => {
+      renderRemoveLeagueSelect();
+      removeLeagueModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelRemoveLeagueBtn").addEventListener("click", closeRemoveLeagueModal);
+
+  removeLeagueModal.addEventListener("click", (event) => {
+    if (event.target === removeLeagueModal) closeRemoveLeagueModal();
+  });
+
+  document.getElementById("saveRemoveLeagueBtn").addEventListener("click", () => {
+    const leagueId = removeLeagueSelect.value;
+    if (!leagueId) return;
+
+    pendingDeleteLeagueId = leagueId;
+    document.getElementById("deleteLeagueMessage").textContent = "Do you really want to delete this League?";
+    closeRemoveLeagueModal();
+    deleteLeagueConfirmModal.classList.add("open");
   });
 
   const activateArchiveLeagueModal = document.getElementById("activateArchiveLeagueModal");
