@@ -485,6 +485,12 @@
     flex-direction: column;
     gap: 0.5rem;
     margin-bottom: 1.25rem;
+  }
+
+  /* Only the "Create a Schedule" wizard's match list stays height-capped —
+     it sits inside a fixed-size modal. The public Schedule page should show
+     every match without an inner scrollbar. */
+  #scheduleMatchList {
     max-height: 220px;
     overflow-y: auto;
   }
@@ -1353,10 +1359,10 @@
     <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
     <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
     <a class="nav-link" href="#league-rules" data-section="league-rules">League Rules</a>
-    <a class="nav-link" href="#about" data-section="about">About Us</a>
-    <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
     <a class="nav-link admin-only" href="#settings" data-section="settings">Settings</a>
     <a class="nav-link admin-only" href="#history" data-section="history">History</a>
+    <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
+    <a class="nav-link" href="#about" data-section="about">About Us</a>
     <div class="switch-role">
       <a href="index.html" id="switchRoleLink">Switch role</a>
     </div>
