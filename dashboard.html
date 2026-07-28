@@ -1666,6 +1666,7 @@
         <button class="settings-action-btn" id="changeTeamNameBtn">Change Team Name</button>
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
         <button class="settings-action-btn" id="activateArchiveLeagueBtn">Activate/Archive a League</button>
+        <button class="settings-action-btn" id="createTeamBtn">Create a new Team</button>
       </div>
     </section>
 
@@ -1771,17 +1772,44 @@
 </div>
 
 <div class="modal-overlay" id="createLeagueModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width: 480px;">
     <h2 class="modal-title">Create a New League</h2>
 
+    <div id="createLeagueStep1">
+      <div class="field">
+        <label for="newLeagueName">League Name</label>
+        <input type="text" id="newLeagueName" placeholder="e.g. Fall 2026">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="createLeagueNextBtn">Next</button>
+        <button class="btn-clear-rally" id="cancelLeagueBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div id="createLeagueStep2" style="display: none;">
+      <p class="section-note">Select the teams that should be part of this league.</p>
+      <div id="createLeagueTeamsList" class="league-status-list"></div>
+      <div class="modal-actions">
+        <button class="btn-save-rally" id="saveLeagueBtn">Save</button>
+        <button class="btn-clear-rally" id="createLeagueBackBtn">Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="createTeamModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Create a New Team</h2>
+
     <div class="field">
-      <label for="newLeagueName">League Name</label>
-      <input type="text" id="newLeagueName" placeholder="e.g. Fall 2026">
+      <label for="newTeamName">Enter New Team Name</label>
+      <input type="text" id="newTeamName" placeholder="e.g. Falcons">
+      <p class="field-error" id="newTeamNameError" style="display: none;">A team with that name already exists.</p>
     </div>
 
     <div class="modal-actions">
-      <button class="btn-save-rally" id="saveLeagueBtn">Save</button>
-      <button class="btn-clear-rally" id="cancelLeagueBtn">Cancel</button>
+      <button class="btn-save-rally" id="saveTeamBtn">Save</button>
+      <button class="btn-clear-rally" id="cancelTeamBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -1917,8 +1945,8 @@
   <div class="modal-box" style="max-width: 560px;">
     <h2 class="modal-title">Activate/Archive a League</h2>
     <p class="section-note" style="margin-bottom: 1.25rem;">
-      Only one league can be active at a time. Scoring, rosters, and schedules all follow the active league.
-      Choosing "Active" for a league automatically archives every other league.
+      Mark each league Active or Archived. Multiple leagues can be active at the same time &mdash;
+      active leagues show in green on the Leagues tab, archived leagues show in red.
     </p>
     <div class="league-status-list" id="leagueStatusList"></div>
     <div class="modal-actions">
@@ -2031,12 +2059,31 @@
   const BASE_TEAMS = ["Invincibles", "Coventry Chasers", "Coventry Sixers", "Crossfires"];
 
   let allLeagues = {};
+  let allTeams = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
   let selectedMatchId = null;
   let leaguesTabLeagueId = null;
   let milestoneTracker = {};
   let previousResultsEditingIndex = -1;
+
+  function getAllTeamNames() {
+    const names = BASE_TEAMS.slice();
+    Object.keys(allTeams).forEach((key) => {
+      const teamName = allTeams[key] && allTeams[key].name;
+      if (teamName && !names.includes(teamName)) names.push(teamName);
+    });
+    return names;
+  }
+
+  function getLeagueStatus(id) {
+    const league = allLeagues[id];
+    if (!league) return "archived";
+    if (league.status === "active" || league.status === "archived") return league.status;
+    // Leagues created before per-league status existed: infer from the
+    // single operational pointer so nothing appears to change unexpectedly.
+    return id === activeLeagueId ? "active" : "archived";
+  }
 
   function getSortedLeagueIds() {
     return Object.keys(allLeagues).sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0));
@@ -2109,7 +2156,7 @@
 
   function populateTeamSelect(selectEl, includeNotYetDecided) {
     selectEl.innerHTML = '<option value="">Choose a team&hellip;</option>';
-    BASE_TEAMS.forEach((team) => {
+    getAllTeamNames().forEach((team) => {
       const option = document.createElement("option");
       option.value = team;
       option.textContent = displayName(team);
@@ -2395,6 +2442,12 @@
     renderFeedbackInbox(snapshot.val() || {});
   });
 
+  onValue(ref(db, "teams"), (snapshot) => {
+    allTeams = snapshot.val() || {};
+    renderTeamGrid();
+    renderRosters();
+  });
+
   const feedbackForm = document.getElementById("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", (event) => {
@@ -2557,6 +2610,31 @@
       });
   }
 
+  function ensureTeamCard(team) {
+    const grid = document.querySelector(".team-grid");
+    if (!grid || grid.querySelector('ul[data-team="' + team + '"]')) return;
+
+    const article = document.createElement("article");
+    article.className = "team-card";
+    const h2 = document.createElement("h2");
+    h2.textContent = displayName(team);
+    const ul = document.createElement("ul");
+    ul.dataset.team = team;
+    article.appendChild(h2);
+    article.appendChild(ul);
+
+    const unassignedUl = grid.querySelector('ul[data-team="Not Yet Decided"]');
+    if (unassignedUl) {
+      grid.insertBefore(article, unassignedUl.closest(".team-card"));
+    } else {
+      grid.appendChild(article);
+    }
+  }
+
+  function renderTeamGrid() {
+    getAllTeamNames().forEach((team) => ensureTeamCard(team));
+  }
+
   function renderRosters() {
     const players = getEffectivePlayers();
 
@@ -2582,7 +2660,7 @@
       const count = (grouped[team] || []).length;
       const heading = ul.parentElement.querySelector("h2");
       if (heading) {
-        const label = BASE_TEAMS.includes(team) ? displayName(team) : "Unassigned Players";
+        const label = getAllTeamNames().includes(team) ? displayName(team) : "Unassigned Players";
         heading.textContent = label + " (" + count + ")";
       }
     });
@@ -3008,7 +3086,10 @@
     const defaults = defaultRallyState();
 
     const stats = {};
-    BASE_TEAMS.forEach((team) => {
+    // Leagues created before team selection existed have no "teams" field —
+    // fall back to every known team so their standings keep working.
+    const leagueTeams = (leagueData && leagueData.teams) ? Object.keys(leagueData.teams) : getAllTeamNames();
+    leagueTeams.forEach((team) => {
       stats[team] = { team, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, pointsFor: 0, pointsAgainst: 0, matchPoints: 0 };
     });
 
@@ -3700,7 +3781,7 @@
       leagueIds.forEach((id) => {
         const option = document.createElement("option");
         option.value = id;
-        const isActive = id === activeLeagueId;
+        const isActive = getLeagueStatus(id) === "active";
         option.textContent = (allLeagues[id].name || id) + (isActive ? " — Active" : " — Archived");
         option.style.color = isActive ? "#1e7d34" : "#b3261e";
         option.style.fontWeight = "700";
@@ -3977,12 +4058,17 @@
 
   const createLeagueModal = document.getElementById("createLeagueModal");
   const newLeagueName = document.getElementById("newLeagueName");
+  const createLeagueStep1 = document.getElementById("createLeagueStep1");
+  const createLeagueStep2 = document.getElementById("createLeagueStep2");
+  const createLeagueTeamsList = document.getElementById("createLeagueTeamsList");
   const deleteLeagueConfirmModal = document.getElementById("deleteLeagueConfirmModal");
   let pendingDeleteLeagueId = "";
 
   function closeCreateLeagueModal() {
     createLeagueModal.classList.remove("open");
     newLeagueName.value = "";
+    createLeagueStep1.style.display = "";
+    createLeagueStep2.style.display = "none";
   }
 
   function closeDeleteLeagueConfirmModal() {
@@ -3993,6 +4079,8 @@
   const createLeagueBtn = document.getElementById("createLeagueBtn");
   if (createLeagueBtn) {
     createLeagueBtn.addEventListener("click", () => {
+      createLeagueStep1.style.display = "";
+      createLeagueStep2.style.display = "none";
       createLeagueModal.classList.add("open");
     });
   }
@@ -4003,19 +4091,100 @@
     if (event.target === createLeagueModal) closeCreateLeagueModal();
   });
 
+  document.getElementById("createLeagueNextBtn").addEventListener("click", () => {
+    const name = newLeagueName.value.trim();
+    if (!name) return;
+
+    createLeagueTeamsList.innerHTML = "";
+    getAllTeamNames().forEach((team) => {
+      const row = document.createElement("div");
+      row.className = "league-status-row";
+      const label = document.createElement("label");
+      label.style.display = "flex";
+      label.style.alignItems = "center";
+      label.style.gap = "0.6rem";
+      label.style.cursor = "pointer";
+      label.style.width = "100%";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = team;
+      checkbox.checked = true;
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(displayName(team)));
+      row.appendChild(label);
+      createLeagueTeamsList.appendChild(row);
+    });
+
+    createLeagueStep1.style.display = "none";
+    createLeagueStep2.style.display = "";
+  });
+
+  document.getElementById("createLeagueBackBtn").addEventListener("click", () => {
+    createLeagueStep2.style.display = "none";
+    createLeagueStep1.style.display = "";
+  });
+
   document.getElementById("saveLeagueBtn").addEventListener("click", () => {
     const name = newLeagueName.value.trim();
     if (!name) return;
+
+    const teams = {};
+    createLeagueTeamsList.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
+      teams[checkbox.value] = true;
+    });
 
     const id = slugify(name) + "-" + Date.now();
     set(ref(db, "leagues/" + id), {
       name,
       createdAt: Date.now(),
-      rallyState: defaultRallyState()
+      status: "active",
+      teams
     });
     set(ref(db, "leagues/_active"), id);
 
     closeCreateLeagueModal();
+  });
+
+  const createTeamModal = document.getElementById("createTeamModal");
+  const newTeamName = document.getElementById("newTeamName");
+  const newTeamNameError = document.getElementById("newTeamNameError");
+
+  function closeCreateTeamModal() {
+    createTeamModal.classList.remove("open");
+    newTeamName.value = "";
+    newTeamNameError.style.display = "none";
+  }
+
+  const createTeamBtn = document.getElementById("createTeamBtn");
+  if (createTeamBtn) {
+    createTeamBtn.addEventListener("click", () => {
+      createTeamModal.classList.add("open");
+    });
+  }
+
+  document.getElementById("cancelTeamBtn").addEventListener("click", closeCreateTeamModal);
+
+  createTeamModal.addEventListener("click", (event) => {
+    if (event.target === createTeamModal) closeCreateTeamModal();
+  });
+
+  document.getElementById("saveTeamBtn").addEventListener("click", () => {
+    const name = newTeamName.value.trim();
+    if (!name) return;
+
+    if (getAllTeamNames().some((team) => team.toLowerCase() === name.toLowerCase())) {
+      newTeamNameError.style.display = "block";
+      return;
+    }
+    newTeamNameError.style.display = "none";
+
+    const id = slugify(name);
+    set(ref(db, "teams/" + id), {
+      name,
+      createdAt: Date.now()
+    });
+
+    closeCreateTeamModal();
   });
 
   const changeTeamNameModal = document.getElementById("changeTeamNameModal");
@@ -4333,10 +4502,12 @@
       const options = document.createElement("div");
       options.className = "league-status-options";
 
+      const currentStatus = getLeagueStatus(id);
+
       const activeRadio = document.createElement("input");
       activeRadio.type = "radio";
       activeRadio.name = "leagueStatus_" + id;
-      activeRadio.checked = id === activeLeagueId;
+      activeRadio.checked = currentStatus === "active";
       activeRadio.dataset.leagueId = id;
       activeRadio.className = "league-status-radio-active";
 
@@ -4347,7 +4518,7 @@
       const archiveRadio = document.createElement("input");
       archiveRadio.type = "radio";
       archiveRadio.name = "leagueStatus_" + id;
-      archiveRadio.checked = id !== activeLeagueId;
+      archiveRadio.checked = currentStatus !== "active";
       archiveRadio.dataset.leagueId = id;
       archiveRadio.className = "league-status-radio-archive";
 
@@ -4355,27 +4526,9 @@
       archiveLabel.appendChild(archiveRadio);
       archiveLabel.appendChild(document.createTextNode("Archive"));
 
-      activeRadio.addEventListener("change", () => {
-        if (!activeRadio.checked) return;
-        // Only one league can be active: selecting Active here archives every other row.
-        leagueStatusList.querySelectorAll(".league-status-radio-active").forEach((el) => {
-          el.checked = el.dataset.leagueId === id;
-        });
-        leagueStatusList.querySelectorAll(".league-status-radio-archive").forEach((el) => {
-          el.checked = el.dataset.leagueId !== id;
-        });
-      });
-
-      archiveRadio.addEventListener("change", () => {
-        if (!archiveRadio.checked) return;
-        // At least one league must stay active; if archiving this one would
-        // leave none active, keep it active until another row is chosen instead.
-        const anyActiveChecked = leagueStatusList.querySelector(".league-status-radio-active:checked");
-        if (!anyActiveChecked) {
-          activeRadio.checked = true;
-          archiveRadio.checked = false;
-        }
-      });
+      // Each league's own Active/Archive pair stays mutually exclusive via the
+      // shared radio "name" above, but leagues no longer affect each other —
+      // any combination of leagues can be Active at the same time.
 
       options.appendChild(activeLabel);
       options.appendChild(archiveLabel);
@@ -4403,13 +4556,25 @@
   document.getElementById("cancelLeagueStatusBtn").addEventListener("click", closeActivateArchiveLeagueModal);
 
   document.getElementById("saveLeagueStatusBtn").addEventListener("click", () => {
-    const checkedActive = leagueStatusList.querySelector(".league-status-radio-active:checked");
-    if (checkedActive) {
-      const newActiveId = checkedActive.dataset.leagueId;
-      if (newActiveId !== activeLeagueId) {
-        set(ref(db, "leagues/_active"), newActiveId);
+    const activeIds = [];
+    leagueStatusList.querySelectorAll(".league-status-radio-active").forEach((el) => {
+      const id = el.dataset.leagueId;
+      const newStatus = el.checked ? "active" : "archived";
+      set(ref(db, "leagues/" + id + "/status"), newStatus);
+      if (newStatus === "active") activeIds.push(id);
+    });
+
+    // The operational pointer (Score Updates, Schedule, Teams, etc.) still
+    // needs exactly one league. Keep it as-is if that league is still
+    // Active; otherwise fall back to another Active league, or clear it.
+    if (!activeIds.includes(activeLeagueId)) {
+      if (activeIds[0]) {
+        set(ref(db, "leagues/_active"), activeIds[0]);
+      } else {
+        remove(ref(db, "leagues/_active"));
       }
     }
+
     closeActivateArchiveLeagueModal();
   });
 
