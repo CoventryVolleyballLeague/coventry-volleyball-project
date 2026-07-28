@@ -1553,7 +1553,12 @@
 
     <section class="page-section" id="previous-results">
       <h1>Previous Match Results</h1>
-      <p class="section-note">Browse completed matches — final set scores, match points, and the full rally log for each set.<span id="activeLeagueLabelPreviousResults"></span></p>
+      <p class="section-note">Browse completed matches — final set scores, match points, and the full rally log for each set.</p>
+
+      <div class="field" style="max-width: 360px;">
+        <label for="previousResultsLeagueSelect">Viewing League</label>
+        <select id="previousResultsLeagueSelect" class="view-league-select"></select>
+      </div>
 
       <div class="field" style="max-width: 480px;">
         <label for="previousMatchSelect">Select a match</label>
@@ -1565,6 +1570,12 @@
 
     <section class="page-section" id="teams">
       <h1>Teams and Players</h1>
+
+      <div class="field" style="max-width: 360px;">
+        <label for="teamsLeagueSelect">Viewing League</label>
+        <select id="teamsLeagueSelect" class="view-league-select"></select>
+      </div>
+
       <div class="team-grid">
         <article class="team-card">
           <h2>Invincibles</h2>
@@ -1634,6 +1645,12 @@
 
     <section class="page-section" id="schedule">
       <h1>Schedule</h1>
+
+      <div class="field" style="max-width: 360px;">
+        <label for="scheduleLeagueSelect">Viewing League</label>
+        <select id="scheduleLeagueSelect" class="view-league-select"></select>
+      </div>
+
       <div class="schedule-list" id="publicScheduleList"></div>
     </section>
 
@@ -2197,6 +2214,16 @@
   let removedTeams = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
+  // viewLeagueId is a per-browser (sessionStorage-only, never written to
+  // Firebase) "which Active league am I currently browsing" selection for
+  // read-only tabs (Teams & Players, Schedule, Previous Match Results).
+  // It's independent of activeLeagueId, the single global operational
+  // pointer that Score Updates / Live Scores and all admin write wizards
+  // keep using, so one person browsing a different league never disrupts
+  // anyone else's live scoring session.
+  let viewLeagueId = sessionStorage.getItem("viewLeagueId") || null;
+  let viewLeagueData = null;
+  let viewState = defaultRemoteState();
   let selectedMatchId = null;
   let leaguesTabLeagueId = null;
   let milestoneTracker = {};
@@ -2230,8 +2257,8 @@
     return leagueIds[0] || null;
   }
 
-  function getSortedScheduleIds() {
-    const schedule = remoteState.schedule || {};
+  function getSortedScheduleIds(state) {
+    const schedule = (state || remoteState).schedule || {};
     return Object.keys(schedule).sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""));
   }
 
@@ -2314,6 +2341,69 @@
     return name.trim().toLowerCase().replace(/[.#$\[\]/]/g, "").replace(/\s+/g, "-") || "league";
   }
 
+  function buildLeagueState(leagueData, id) {
+    return leagueData
+      ? {
+          name: leagueData.name || id,
+          addedPlayers: leagueData.addedPlayers || [],
+          removedPlayers: leagueData.removedPlayers || [],
+          teamOverrides: leagueData.teamOverrides || {},
+          teamCaptains: leagueData.teamCaptains || {},
+          teamNames: leagueData.teamNames || {},
+          schedule: leagueData.schedule || {},
+          rallyStates: leagueData.rallyStates || {},
+          activeMatchId: leagueData.activeMatchId || null
+        }
+      : defaultRemoteState();
+  }
+
+  function getActiveLeagueIds() {
+    return Object.keys(allLeagues).filter((id) => getLeagueStatus(id) === "active");
+  }
+
+  function resolveViewLeagueId(activeIds) {
+    if (viewLeagueId && activeIds.includes(viewLeagueId)) return viewLeagueId;
+    if (activeLeagueId && activeIds.includes(activeLeagueId)) return activeLeagueId;
+    return activeIds[0] || null;
+  }
+
+  function getAllTeamNamesFor(leagueData) {
+    const names = (leagueData && leagueData.teams) ? Object.keys(leagueData.teams) : getAllTeamNames();
+    return names.filter((team) => !removedTeams[slugify(team)]);
+  }
+
+  function getEffectivePlayersFrom(leagueData) {
+    const teamOverrides = leagueData.teamOverrides || {};
+    const captains = Object.assign({}, defaultCaptains, leagueData.teamCaptains || {});
+    const removed = leagueData.removedPlayers || [];
+    const base = basePlayers.map((p) => ({ name: p.name, team: p.team, isOriginal: true }));
+    const added = (leagueData.addedPlayers || []).map((p) => ({ name: p.name, team: p.team, isOriginal: false }));
+    return base
+      .concat(added)
+      .filter((p) => !removed.includes(p.name))
+      .map((p) => {
+        const team = teamOverrides[p.name] || p.team;
+        return {
+          name: p.name,
+          team,
+          isCaptain: captains[team] === p.name,
+          isNative: p.isOriginal && team === p.team
+        };
+      });
+  }
+
+  function recomputeViewState() {
+    const activeIds = getActiveLeagueIds();
+    viewLeagueId = resolveViewLeagueId(activeIds);
+    if (viewLeagueId) {
+      sessionStorage.setItem("viewLeagueId", viewLeagueId);
+    } else {
+      sessionStorage.removeItem("viewLeagueId");
+    }
+    viewLeagueData = viewLeagueId ? allLeagues[viewLeagueId] : null;
+    viewState = buildLeagueState(viewLeagueData, viewLeagueId);
+  }
+
   onValue(ref(db, "leagues"), (snapshot) => {
     const data = snapshot.val() || {};
     activeLeagueId = data._active || null;
@@ -2323,23 +2413,12 @@
       allLeagues[key] = data[key];
     });
 
-    const activeData = activeLeagueId ? allLeagues[activeLeagueId] : null;
-    remoteState = activeData
-      ? {
-          name: activeData.name || activeLeagueId,
-          addedPlayers: activeData.addedPlayers || [],
-          removedPlayers: activeData.removedPlayers || [],
-          teamOverrides: activeData.teamOverrides || {},
-          teamCaptains: activeData.teamCaptains || {},
-          teamNames: activeData.teamNames || {},
-          schedule: activeData.schedule || {},
-          rallyStates: activeData.rallyStates || {},
-          activeMatchId: activeData.activeMatchId || null
-        }
-      : defaultRemoteState();
+    remoteState = buildLeagueState(activeLeagueId ? allLeagues[activeLeagueId] : null, activeLeagueId);
+    recomputeViewState();
 
     selectedMatchId = resolveSelectedMatchId(getSortedScheduleIds());
 
+    renderTeamGrid();
     renderRosters();
     renderAll();
     renderHistoryList();
@@ -2348,6 +2427,7 @@
     renderScheduleMatchList();
     renderPublicSchedule();
     renderLeaguesTab();
+    renderViewLeagueSelectors();
     renderPreviousMatchSelect();
   });
 
@@ -2751,14 +2831,14 @@
       });
   }
 
-  function ensureTeamCard(team) {
+  function ensureTeamCard(team, leagueData) {
     const grid = document.querySelector(".team-grid");
     if (!grid || grid.querySelector('ul[data-team="' + team + '"]')) return;
 
     const article = document.createElement("article");
     article.className = "team-card";
     const h2 = document.createElement("h2");
-    h2.textContent = displayName(team);
+    h2.textContent = displayNameFor(leagueData, team);
     const ul = document.createElement("ul");
     ul.dataset.team = team;
     article.appendChild(h2);
@@ -2773,8 +2853,8 @@
   }
 
   function renderTeamGrid() {
-    const visibleTeams = getAllTeamNames();
-    visibleTeams.forEach((team) => ensureTeamCard(team));
+    const visibleTeams = getAllTeamNamesFor(viewLeagueData);
+    visibleTeams.forEach((team) => ensureTeamCard(team, viewLeagueData));
 
     // Removed teams keep their card in the DOM (so their historical roster
     // isn't lost) but drop out of view until re-added.
@@ -2787,7 +2867,7 @@
   }
 
   function renderRosters() {
-    const players = getEffectivePlayers();
+    const players = getEffectivePlayersFrom(viewState);
 
     document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
       ul.innerHTML = "";
@@ -2811,7 +2891,7 @@
       const count = (grouped[team] || []).length;
       const heading = ul.parentElement.querySelector("h2");
       if (heading) {
-        const label = team === "Not Yet Decided" ? "Unassigned Players" : displayName(team);
+        const label = team === "Not Yet Decided" ? "Unassigned Players" : displayNameFor(viewLeagueData, team);
         heading.textContent = label + " (" + count + ")";
       }
     });
@@ -3420,20 +3500,21 @@
     return { standings, totalMatches: scheduleIds.length, completedMatches };
   }
 
-  function renderScoreboard(container, state) {
+  function renderScoreboard(container, state, leagueData) {
     if (!container) return;
+    const nameFor = (team) => (leagueData ? displayNameFor(leagueData, team) : displayName(team));
     container.innerHTML = "";
     state.sets.forEach((set, i) => {
       const winner = computeSetWinner(set, i);
-      const winnerLabel = winner === "A" ? displayName(state.teamA) : winner === "B" ? displayName(state.teamB) : "TBD";
+      const winnerLabel = winner === "A" ? nameFor(state.teamA) : winner === "B" ? nameFor(state.teamB) : "TBD";
       const card = document.createElement("div");
       card.className = "set-card";
       card.innerHTML =
         '<div class="set-card-title">Set ' + (i + 1) + '</div>' +
         '<div class="set-score-row">' +
-          '<div class="set-team"><div class="set-team-name">' + displayName(state.teamA) + '</div><div class="set-team-score">' + set.a + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + nameFor(state.teamA) + '</div><div class="set-team-score">' + set.a + '</div></div>' +
           '<div class="set-vs">vs</div>' +
-          '<div class="set-team"><div class="set-team-name">' + displayName(state.teamB) + '</div><div class="set-team-score">' + set.b + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + nameFor(state.teamB) + '</div><div class="set-team-score">' + set.b + '</div></div>' +
         '</div>' +
         '<div class="set-card-footer">' +
           '<span>' + set.rallies + ' rallies</span>' +
@@ -3460,7 +3541,8 @@
     selectEl.value = selectedName || "";
   }
 
-  function buildSetRallyTable(setIndex, state, isAdmin, matchId, editingIndex, onEditRequest, onUpdate) {
+  function buildSetRallyTable(setIndex, state, isAdmin, matchId, editingIndex, onEditRequest, onUpdate, leagueData) {
+    const nameFor = (team) => (leagueData ? displayNameFor(leagueData, team) : displayName(team));
     const entries = [];
     state.log.forEach((entry, fullIndex) => {
       const entrySet = entry.setIndex === undefined ? 0 : entry.setIndex;
@@ -3482,7 +3564,7 @@
     const thead = document.createElement("thead");
     thead.innerHTML =
       "<tr><th>Rally No.</th><th>Winning Team</th><th>Player</th><th>Point Type</th><th>" +
-      displayName(state.teamA) + "</th><th>" + displayName(state.teamB) + "</th><th>Notes</th>" +
+      nameFor(state.teamA) + "</th><th>" + nameFor(state.teamB) + "</th><th>Notes</th>" +
       (isAdmin ? "<th>Actions</th>" : "") +
       "</tr>";
     table.appendChild(thead);
@@ -3588,7 +3670,7 @@
         const scoreBCellHtml = '<td class="' + (entry.winningTeam === state.teamB ? "score-highlight" : "") + '">' + entry.scoreB + "</td>";
         tr.innerHTML =
           "<td>" + entry.rallyNo + "</td>" +
-          '<td class="team-cell">' + displayName(entry.winningTeam) + "</td>" +
+          '<td class="team-cell">' + nameFor(entry.winningTeam) + "</td>" +
           "<td>" + (entry.player || "&mdash;") + "</td>" +
           "<td>" + entry.pointType + "</td>" +
           scoreACellHtml +
@@ -3985,11 +4067,55 @@
     const text = activeLeagueId
       ? " Active league: " + (remoteState.name || activeLeagueId)
       : " No active league yet — create one below.";
-    ["activeLeagueLabel", "activeLeagueLabelScoreUpdates", "activeLeagueLabelPreviousResults"].forEach((id) => {
+    ["activeLeagueLabel", "activeLeagueLabelScoreUpdates"].forEach((id) => {
       const label = document.getElementById(id);
       if (label) label.textContent = text;
     });
   }
+
+  function renderViewLeagueSelectors() {
+    const activeIds = getActiveLeagueIds();
+    ["teamsLeagueSelect", "scheduleLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      select.innerHTML = "";
+      if (!activeIds.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No active leagues yet";
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+      }
+
+      select.disabled = false;
+      activeIds.forEach((id) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = allLeagues[id].name || id;
+        select.appendChild(option);
+      });
+      select.value = viewLeagueId || "";
+    });
+  }
+
+  function onViewLeagueChanged(newId) {
+    viewLeagueId = newId || null;
+    recomputeViewState();
+    renderViewLeagueSelectors();
+    renderTeamGrid();
+    renderRosters();
+    renderPublicSchedule();
+    renderPreviousMatchSelect();
+  }
+
+  ["teamsLeagueSelect", "scheduleLeagueSelect", "previousResultsLeagueSelect"].forEach((selectId) => {
+    const select = document.getElementById(selectId);
+    if (select) {
+      select.addEventListener("change", () => onViewLeagueChanged(select.value));
+    }
+  });
 
   const FREE_TIER_BYTES = 1024 * 1024 * 1024; // Firebase Realtime Database Spark plan: 1GB
 
@@ -4113,11 +4239,12 @@
     }
   }
 
-  function getCompletedMatchIds() {
-    const schedule = remoteState.schedule || {};
-    const rallyStates = remoteState.rallyStates || {};
+  function getCompletedMatchIds(state) {
+    state = state || remoteState;
+    const schedule = state.schedule || {};
+    const rallyStates = state.rallyStates || {};
     const defaults = defaultRallyState();
-    return getSortedScheduleIds().filter((id) => {
+    return getSortedScheduleIds(state).filter((id) => {
       const match = schedule[id];
       const saved = rallyStates[id] || {};
       const state = {
@@ -4140,14 +4267,14 @@
       return;
     }
 
-    const schedule = remoteState.schedule || {};
+    const schedule = viewState.schedule || {};
     const match = schedule[matchId];
     if (!match) {
       container.innerHTML = '<p class="section-note">This match is no longer available.</p>';
       return;
     }
 
-    const saved = (remoteState.rallyStates && remoteState.rallyStates[matchId]) || {};
+    const saved = (viewState.rallyStates && viewState.rallyStates[matchId]) || {};
     const defaults = defaultRallyState();
     const state = {
       teamA: match.teamA,
@@ -4161,23 +4288,26 @@
 
     const banner = document.createElement("div");
     banner.className = "match-winner-banner";
-    banner.textContent = "Match Winner: " + displayName(winner) +
-      (mp ? " (" + displayName(state.teamA) + " " + mp[state.teamA] + " MP – " +
-        displayName(state.teamB) + " " + mp[state.teamB] + " MP)" : "");
+    banner.textContent = "Match Winner: " + displayNameFor(viewLeagueData, winner) +
+      (mp ? " (" + displayNameFor(viewLeagueData, state.teamA) + " " + mp[state.teamA] + " MP – " +
+        displayNameFor(viewLeagueData, state.teamB) + " " + mp[state.teamB] + " MP)" : "");
     container.appendChild(banner);
 
     const scoreboard = document.createElement("div");
     scoreboard.className = "set-scores";
     container.appendChild(scoreboard);
-    renderScoreboard(scoreboard, state);
+    renderScoreboard(scoreboard, state, viewLeagueData);
 
-    const isAdmin = sessionStorage.getItem("role") === "admin";
+    // Editing writes to the operational league (activeLeagueId), so only
+    // allow it while Previous Results is actually showing that league.
+    const isAdmin = sessionStorage.getItem("role") === "admin" && viewLeagueId === activeLeagueId;
     for (let i = 0; i < state.sets.length; i++) {
       if (state.sets[i].rallies > 0) {
         container.appendChild(buildSetRallyTable(
           i, state, isAdmin, matchId, previousResultsEditingIndex,
           (idx) => { previousResultsEditingIndex = idx; },
-          () => renderPreviousMatchSelect()
+          () => renderPreviousMatchSelect(),
+          viewLeagueData
         ));
       }
     }
@@ -4187,9 +4317,9 @@
     const select = document.getElementById("previousMatchSelect");
     if (!select) return;
 
-    const schedule = remoteState.schedule || {};
-    const scheduleIds = getSortedScheduleIds();
-    const completedIds = getCompletedMatchIds();
+    const schedule = viewState.schedule || {};
+    const scheduleIds = getSortedScheduleIds(viewState);
+    const completedIds = getCompletedMatchIds(viewState);
     const currentValue = select.value;
 
     select.innerHTML = "";
@@ -4205,8 +4335,8 @@
       const dateLabel = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
       const option = document.createElement("option");
       option.value = id;
-      option.textContent = "Match " + matchNumber + ": " + displayName(match.teamA) + " vs " +
-        displayName(match.teamB) + " — " + dateLabel;
+      option.textContent = "Match " + matchNumber + ": " + displayNameFor(viewLeagueData, match.teamA) + " vs " +
+        displayNameFor(viewLeagueData, match.teamB) + " — " + dateLabel;
       select.appendChild(option);
     });
 
@@ -4219,8 +4349,12 @@
     if (!container) return;
     container.innerHTML = "";
 
-    const schedule = remoteState.schedule || {};
+    const schedule = viewState.schedule || {};
     const ids = Object.keys(schedule);
+    // Edit/Remove write to the operational league (activeLeagueId), so only
+    // show them while browsing that same league — otherwise they'd silently
+    // edit a different league than the one on screen.
+    const canEdit = viewLeagueId && viewLeagueId === activeLeagueId;
 
     if (!ids.length) {
       container.innerHTML = '<p class="section-note">No matches scheduled yet.</p>';
@@ -4236,39 +4370,43 @@
 
         const teams = document.createElement("div");
         teams.className = "schedule-row-teams";
-        teams.textContent = displayName(match.teamA) + " vs " + displayName(match.teamB);
+        teams.textContent = displayNameFor(viewLeagueData, match.teamA) + " vs " + displayNameFor(viewLeagueData, match.teamB);
 
         const dateCol = document.createElement("div");
         dateCol.className = "schedule-row-date";
         dateCol.textContent = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
 
-        const actions = document.createElement("div");
-        actions.className = "schedule-row-actions";
-
-        const editBtn = document.createElement("button");
-        editBtn.type = "button";
-        editBtn.textContent = "Edit";
-        editBtn.addEventListener("click", () => {
-          pendingScheduleEditId = id;
-          editScheduleDateInput.value = match.date || "";
-          editScheduleTimeInput.value = match.time || "";
-          editScheduleMatchModal.classList.add("open");
-        });
-
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "remove-btn";
-        removeBtn.textContent = "Remove";
-        removeBtn.addEventListener("click", () => {
-          pendingScheduleRemoveId = id;
-          removeScheduleMatchConfirmModal.classList.add("open");
-        });
-
-        actions.appendChild(editBtn);
-        actions.appendChild(removeBtn);
         row.appendChild(teams);
         row.appendChild(dateCol);
-        row.appendChild(actions);
+
+        if (canEdit) {
+          const actions = document.createElement("div");
+          actions.className = "schedule-row-actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.textContent = "Edit";
+          editBtn.addEventListener("click", () => {
+            pendingScheduleEditId = id;
+            editScheduleDateInput.value = match.date || "";
+            editScheduleTimeInput.value = match.time || "";
+            editScheduleMatchModal.classList.add("open");
+          });
+
+          const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.className = "remove-btn";
+          removeBtn.textContent = "Remove";
+          removeBtn.addEventListener("click", () => {
+            pendingScheduleRemoveId = id;
+            removeScheduleMatchConfirmModal.classList.add("open");
+          });
+
+          actions.appendChild(editBtn);
+          actions.appendChild(removeBtn);
+          row.appendChild(actions);
+        }
+
         container.appendChild(row);
       });
   }
