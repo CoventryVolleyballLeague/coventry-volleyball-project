@@ -2288,8 +2288,9 @@
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
   // viewLeagueId is a per-browser (sessionStorage-only, never written to
-  // Firebase) "which Active league am I currently browsing" selection for
-  // read-only tabs (Teams & Players, Schedule, Previous Match Results).
+  // Firebase) "which league (Active or Archived) am I currently browsing"
+  // selection for read-only tabs (Teams & Players, Schedule, Previous
+  // Match Results, MVP Standings).
   // It's independent of activeLeagueId, the single global operational
   // pointer that Score Updates / Live Scores and all admin write wizards
   // keep using, so one person browsing a different league never disrupts
@@ -2322,6 +2323,11 @@
 
   function getSortedLeagueIds() {
     return Object.keys(allLeagues).sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0));
+  }
+
+  function leagueOptionLabel(id) {
+    const name = (allLeagues[id] && allLeagues[id].name) || id;
+    return name + (getLeagueStatus(id) === "active" ? " — Active" : " — Archived");
   }
 
   function resolveLeaguesTabLeagueId(leagueIds) {
@@ -2434,10 +2440,10 @@
     return Object.keys(allLeagues).filter((id) => getLeagueStatus(id) === "active");
   }
 
-  function resolveViewLeagueId(activeIds) {
-    if (viewLeagueId && activeIds.includes(viewLeagueId)) return viewLeagueId;
-    if (activeLeagueId && activeIds.includes(activeLeagueId)) return activeLeagueId;
-    return activeIds[0] || null;
+  function resolveViewLeagueId(leagueIds) {
+    if (viewLeagueId && leagueIds.includes(viewLeagueId)) return viewLeagueId;
+    if (activeLeagueId && leagueIds.includes(activeLeagueId)) return activeLeagueId;
+    return leagueIds[0] || null;
   }
 
   function getAllTeamNamesFor(leagueData) {
@@ -2466,8 +2472,7 @@
   }
 
   function recomputeViewState() {
-    const activeIds = getActiveLeagueIds();
-    viewLeagueId = resolveViewLeagueId(activeIds);
+    viewLeagueId = resolveViewLeagueId(getSortedLeagueIds());
     if (viewLeagueId) {
       sessionStorage.setItem("viewLeagueId", viewLeagueId);
     } else {
@@ -4207,9 +4212,19 @@
   }
 
   function renderActiveLeagueLabel() {
-    const text = activeLeagueId
-      ? " Active league: " + (remoteState.name || activeLeagueId)
-      : " No active league yet — create one below.";
+    let text;
+    if (!activeLeagueId) {
+      text = " No active league yet — create one below.";
+    } else {
+      const name = remoteState.name || activeLeagueId;
+      const activeCount = getActiveLeagueIds().length;
+      // "Active league" reads as if it's the only one — with the
+      // multi-active-league feature that's often false, so spell out that
+      // this is just which one Settings/Score Updates currently apply to.
+      text = activeCount > 1
+        ? " Currently editing: " + name + " (" + activeCount + " leagues are marked Active — switch via Activate/Archive a League)"
+        : " Active league: " + name;
+    }
     ["activeLeagueLabel", "activeLeagueLabelScoreUpdates"].forEach((id) => {
       const label = document.getElementById(id);
       if (label) label.textContent = text;
@@ -4217,26 +4232,28 @@
   }
 
   function renderViewLeagueSelectors() {
-    const activeIds = getActiveLeagueIds();
+    const leagueIds = getSortedLeagueIds();
     ["teamsLeagueSelect", "scheduleViewLeagueSelect", "previousResultsLeagueSelect", "mvpStandingsLeagueSelect"].forEach((selectId) => {
       const select = document.getElementById(selectId);
       if (!select) return;
 
       select.innerHTML = "";
-      if (!activeIds.length) {
+      if (!leagueIds.length) {
         const option = document.createElement("option");
         option.value = "";
-        option.textContent = "No active leagues yet";
+        option.textContent = "No leagues yet";
         select.appendChild(option);
         select.disabled = true;
         return;
       }
 
       select.disabled = false;
-      activeIds.forEach((id) => {
+      leagueIds.forEach((id) => {
         const option = document.createElement("option");
         option.value = id;
-        option.textContent = allLeagues[id].name || id;
+        option.textContent = leagueOptionLabel(id);
+        option.style.color = getLeagueStatus(id) === "active" ? "#1e7d34" : "#b3261e";
+        option.style.fontWeight = "700";
         select.appendChild(option);
       });
       select.value = viewLeagueId || "";
@@ -4307,7 +4324,7 @@
         const option = document.createElement("option");
         option.value = id;
         const isActive = getLeagueStatus(id) === "active";
-        option.textContent = (allLeagues[id].name || id) + (isActive ? " — Active" : " — Archived");
+        option.textContent = leagueOptionLabel(id);
         option.style.color = isActive ? "#1e7d34" : "#b3261e";
         option.style.fontWeight = "700";
         select.appendChild(option);
@@ -4496,7 +4513,10 @@
       if (!saved || !saved.log) return;
       saved.log.forEach((entry) => {
         const name = entry.player;
-        if (!name) return;
+        // A fault is the opponent's error, never the scoring player's own
+        // credit — exclude it even if a player happens to be attached to
+        // the row, so a mis-tagged entry can't inflate someone's total.
+        if (!name || entry.pointType === "Opponent Fault") return;
         if (!stats[name]) stats[name] = { total: 0, ace: 0, kill: 0, block: 0 };
         stats[name].total++;
         if (entry.pointType === "Service Ace") stats[name].ace++;
@@ -4664,14 +4684,22 @@
       .sort((a, b) => (allLeagues[b].createdAt || 0) - (allLeagues[a].createdAt || 0))
       .forEach((id) => {
         const league = allLeagues[id];
-        const isActive = id === activeLeagueId;
+        // A league's Active/Archived status (set via Activate/Archive a
+        // League) is independent from activeLeagueId, which only tracks
+        // which ONE active league Settings/Score Updates currently write
+        // to. Badge every Active league here, not just that one, so this
+        // matches what Activate/Archive and the Leagues tab actually show.
+        const isActive = getLeagueStatus(id) === "active";
         const card = document.createElement("div");
         card.className = "history-card";
         const createdLabel = league.createdAt ? new Date(league.createdAt).toLocaleDateString() : "Unknown date";
+        const leagueBytes = new TextEncoder().encode(JSON.stringify(league)).length;
+        const leaguePercent = (leagueBytes / FREE_TIER_BYTES) * 100;
         card.innerHTML =
           '<div>' +
             '<div class="history-card-name">' + (league.name || id) + (isActive ? '<span class="active-badge">Active</span>' : '') + '</div>' +
             '<div class="history-card-date">Created ' + createdLabel + '</div>' +
+            '<div class="history-card-date">' + formatBytes(leagueBytes) + ' used (' + leaguePercent.toFixed(4) + '% of 1GB free tier)</div>' +
           '</div>';
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "btn-remove-player";
@@ -5063,7 +5091,7 @@
       Object.keys(allLeagues).forEach((id) => {
         const option = document.createElement("option");
         option.value = id;
-        option.textContent = allLeagues[id].name || id;
+        option.textContent = leagueOptionLabel(id);
         scheduleLeagueSelect.appendChild(option);
       });
       scheduleModal.classList.add("open");
@@ -5205,7 +5233,7 @@
     getSortedLeagueIds().forEach((id) => {
       const option = document.createElement("option");
       option.value = id;
-      option.textContent = (allLeagues[id] && allLeagues[id].name) || id;
+      option.textContent = leagueOptionLabel(id);
       editLeagueSelect.appendChild(option);
     });
   }
@@ -5308,7 +5336,7 @@
     getSortedLeagueIds().forEach((id) => {
       const option = document.createElement("option");
       option.value = id;
-      option.textContent = (allLeagues[id] && allLeagues[id].name) || id;
+      option.textContent = leagueOptionLabel(id);
       removeLeagueSelect.appendChild(option);
     });
   }
