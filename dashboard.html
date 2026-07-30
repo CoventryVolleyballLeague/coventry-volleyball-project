@@ -3257,12 +3257,13 @@
 
   function populateAssignPlayersOptions() {
     assignPlayersList.innerHTML = "";
-    getEffectivePlayers()
-      .filter((p) => p.team === "Not Yet Decided")
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((p) => {
-        assignPlayersList.appendChild(buildPlayerCheckboxRow(p.name, p.name));
-      });
+    // Match the Unassigned Players card on Teams & Players: the full pool
+    // merged across every league, not just players already on this
+    // league's own roster — otherwise someone unassigned in a league you
+    // aren't currently operating on would never show up here.
+    getGlobalUnassignedPlayers().forEach((p) => {
+      assignPlayersList.appendChild(buildPlayerCheckboxRow(p.name, p.name));
+    });
     populateTeamSelect(assignPlayersTeamSelect, false);
   }
 
@@ -3290,11 +3291,24 @@
     const team = assignPlayersTeamSelect.value;
     if (!selected.length || !team) return;
 
+    // A selected player might only exist in some OTHER league's roster
+    // (that's why the global unassigned list can include them at all) —
+    // a teamOverride alone would be a silent no-op for this league since
+    // there'd be no base/added entry for it to override. Add them to this
+    // league's addedPlayers directly in that case; otherwise override as
+    // usual.
+    const existingNames = new Set(getEffectivePlayers().map((p) => p.name));
     const overrides = Object.assign({}, getTeamOverrides());
+    const addedPlayers = getAddedPlayers().slice();
     selected.forEach((name) => {
-      overrides[name] = team;
+      if (existingNames.has(name)) {
+        overrides[name] = team;
+      } else {
+        addedPlayers.push({ name, team });
+      }
     });
     writeToLeague("teamOverrides", overrides);
+    writeToLeague("addedPlayers", addedPlayers);
 
     renderRosters();
     closeAssignPlayersModal();
