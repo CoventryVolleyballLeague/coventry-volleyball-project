@@ -2946,11 +2946,25 @@
   }
 
   function getGlobalUnassignedPlayers() {
+    // A player can be "Not Yet Decided" in one league's own bookkeeping
+    // while genuinely rostered to a team in another — that's a real state,
+    // not a bug. But once they're on a team ANYWHERE, they must stop
+    // showing up as unassigned everywhere: a real team assignment always
+    // wins over a stale "Not Yet Decided" placeholder in some other
+    // league's roster.
+    const assignedSomewhere = new Set();
+    Object.keys(allLeagues).forEach((id) => {
+      const state = buildLeagueState(allLeagues[id], id);
+      getEffectivePlayersFrom(state).forEach((p) => {
+        if (p.team !== "Not Yet Decided") assignedSomewhere.add(p.name);
+      });
+    });
+
     const merged = new Map();
     Object.keys(allLeagues).forEach((id) => {
       const state = buildLeagueState(allLeagues[id], id);
       getEffectivePlayersFrom(state)
-        .filter((p) => p.team === "Not Yet Decided")
+        .filter((p) => p.team === "Not Yet Decided" && !assignedSomewhere.has(p.name))
         .forEach((p) => {
           if (!merged.has(p.name)) merged.set(p.name, p);
         });
