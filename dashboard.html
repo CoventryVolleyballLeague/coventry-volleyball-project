@@ -3100,7 +3100,8 @@
     players.forEach((p) => {
       const option = document.createElement("option");
       option.value = p.name;
-      option.textContent = p.isCaptain ? p.name + " (C)" : p.name;
+      const teamLabel = p.team === "Not Yet Decided" ? "Unassigned" : displayName(p.team);
+      option.textContent = p.name + (p.isCaptain ? " (C)" : "") + " — " + teamLabel;
       option.dataset.team = p.team;
       removePlayerSelect.appendChild(option);
     });
