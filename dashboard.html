@@ -456,6 +456,7 @@
 
   .league-status-options {
     display: flex;
+    flex-wrap: wrap;
     gap: 1.25rem;
   }
 
@@ -1414,8 +1415,8 @@
 
         <div class="stat-card">
           <div class="stat-label">Champion</div>
-          <div class="stat-value">TBD</div>
-          <div class="stat-sub">Updates after final</div>
+          <div class="stat-value" id="statChampionValue">TBD</div>
+          <div class="stat-sub" id="statChampionSub">Updates after final</div>
         </div>
 
         <div class="stat-card">
@@ -2099,6 +2100,16 @@
       <div class="field">
         <label for="scheduleTimeInput">Match Time</label>
         <input type="time" id="scheduleTimeInput">
+      </div>
+
+      <div class="field">
+        <label>Match Type</label>
+        <div class="league-status-options" id="scheduleMatchTypeOptions">
+          <label><input type="radio" name="scheduleMatchType" value="Round Robin" checked> League Match</label>
+          <label><input type="radio" name="scheduleMatchType" value="2nd Runner-Up"> 2nd Runners Up</label>
+          <label><input type="radio" name="scheduleMatchType" value="Semi-Final"> Semi Finals</label>
+          <label><input type="radio" name="scheduleMatchType" value="Final"> Finals</label>
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -3659,6 +3670,14 @@
       if (winner === "TBD") return;
       completedMatches++;
 
+      // Only round-robin matches count toward the standings table and
+      // seeding — playoff matches (Semi-Final, 2nd Runner-Up, Final)
+      // decide final tournament placement separately, the same way the
+      // source spreadsheet's own Live Standings only reflects the round
+      // robin. Matches with no stage at all (older leagues) still count,
+      // so this never changes standings for leagues that predate stages.
+      if (match.stage && match.stage !== "Round Robin") return;
+
       const mp = computeMatchPoints(state);
       let aSetsWon = 0;
       let bSetsWon = 0;
@@ -3708,6 +3727,38 @@
     });
 
     return { standings, totalMatches: scheduleIds.length, completedMatches };
+  }
+
+  function computeFinalStandings(leagueData) {
+    const schedule = (leagueData && leagueData.schedule) || {};
+    const rallyStates = (leagueData && leagueData.rallyStates) || {};
+    const defaults = defaultRallyState();
+
+    function winnerOfStage(stage) {
+      const matchId = Object.keys(schedule).find((id) => schedule[id].stage === stage);
+      if (!matchId) return null;
+      const match = schedule[matchId];
+      const saved = rallyStates[matchId] || {};
+      const state = {
+        teamA: match.teamA,
+        teamB: match.teamB,
+        sets: saved.sets || defaults.sets,
+        log: saved.log || []
+      };
+      const winner = computeMatchWinner(state);
+      if (winner === "TBD") return null;
+      const loser = winner === match.teamA ? match.teamB : match.teamA;
+      return { winner, loser };
+    }
+
+    const final = winnerOfStage("Final");
+    const secondRunnerUpMatch = winnerOfStage("2nd Runner-Up");
+
+    return {
+      champion: final ? final.winner : null,
+      runnerUp: final ? final.loser : null,
+      secondRunnerUp: secondRunnerUpMatch ? secondRunnerUpMatch.winner : null
+    };
   }
 
   function renderScoreboard(container, state, leagueData) {
@@ -4412,6 +4463,19 @@
     if (topSeedValueEl) topSeedValueEl.textContent = hasTopSeed ? displayNameFor(leagueData, standings[0].team) : "TBD";
     if (topSeedSubEl) topSeedSubEl.textContent = hasTopSeed ? "Leads by Match Points" : "Updates once matches begin";
 
+    const championValueEl = document.getElementById("statChampionValue");
+    const championSubEl = document.getElementById("statChampionSub");
+    const finalStandings = computeFinalStandings(leagueData);
+    if (championValueEl) {
+      championValueEl.textContent = finalStandings.champion ? displayNameFor(leagueData, finalStandings.champion) : "TBD";
+    }
+    if (championSubEl) {
+      championSubEl.textContent = finalStandings.champion
+        ? "Runner-up: " + displayNameFor(leagueData, finalStandings.runnerUp) +
+          (finalStandings.secondRunnerUp ? " · 2nd Runner-Up: " + displayNameFor(leagueData, finalStandings.secondRunnerUp) : "")
+        : "Updates after final";
+    }
+
     if (matchesValueEl) matchesValueEl.textContent = totalMatches ? completedMatches + " / " + totalMatches : "TBD";
     if (matchesSubEl) matchesSubEl.textContent = totalMatches ? "matches played so far" : "No matches scheduled yet";
     if (matchesFillEl) matchesFillEl.style.width = (totalMatches ? (completedMatches / totalMatches) * 100 : 0) + "%";
@@ -5042,6 +5106,19 @@
   const scheduleTimeInput = document.getElementById("scheduleTimeInput");
   const scheduleTeamError = document.getElementById("scheduleTeamError");
   const scheduleMatchList = document.getElementById("scheduleMatchList");
+  const scheduleMatchTypeRadios = document.querySelectorAll('input[name="scheduleMatchType"]');
+
+  function getScheduleMatchType() {
+    const checked = document.querySelector('input[name="scheduleMatchType"]:checked');
+    return checked ? checked.value : "Round Robin";
+  }
+
+  function setScheduleMatchType(stage) {
+    const value = stage || "Round Robin";
+    scheduleMatchTypeRadios.forEach((radio) => {
+      radio.checked = radio.value === value;
+    });
+  }
   const scheduleMatchTitle = document.getElementById("scheduleMatchTitle");
 
   let scheduleLeagueId = "";
@@ -5069,6 +5146,7 @@
     scheduleTeamBSelect.value = match.teamB;
     scheduleDateInput.value = match.date || "";
     scheduleTimeInput.value = match.time || "";
+    setScheduleMatchType(match.stage);
     scheduleTeamError.style.display = "none";
   }
 
@@ -5093,8 +5171,10 @@
 
       const text = document.createElement("div");
       text.className = "schedule-item-text";
+      const matchTypeLabels = { "Round Robin": "League Match", "2nd Runner-Up": "2nd Runners Up", "Semi-Final": "Semi Finals", "Final": "Finals" };
       let label = displayName(match.teamA) + " vs " + displayName(match.teamB) + " — " + (match.date || "No date set");
       if (match.time) label += " at " + formatTime12h(match.time);
+      if (match.stage && match.stage !== "Round Robin") label += " (" + (matchTypeLabels[match.stage] || match.stage) + ")";
       text.textContent = label;
 
       const actions = document.createElement("div");
@@ -5133,6 +5213,7 @@
     scheduleTeamBSelect.value = "";
     scheduleDateInput.value = "";
     scheduleTimeInput.value = "";
+    setScheduleMatchType("Round Robin");
     scheduleTeamError.style.display = "none";
     scheduleEditingMatchId = "";
     renderScheduleMatchList();
@@ -5205,7 +5286,8 @@
 
     const matchId = scheduleEditingMatchId || ("m" + Date.now());
     scheduleEditingMatchId = matchId;
-    set(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + matchId), { teamA: teamA, teamB: teamB, date: date, time: time });
+    const stage = getScheduleMatchType();
+    set(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + matchId), { teamA: teamA, teamB: teamB, date: date, time: time, stage: stage });
   });
 
   document.getElementById("scheduleAddAnotherBtn").addEventListener("click", resetScheduleForm);
