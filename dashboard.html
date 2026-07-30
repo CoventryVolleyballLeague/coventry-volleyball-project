@@ -2969,9 +2969,11 @@
     const unassignedRecord = new Map();
     Object.keys(allLeagues).forEach((id) => {
       const leagueData = allLeagues[id];
+      const removed = leagueData.removedPlayers || [];
       const names = new Set(Object.keys(leagueData.teamOverrides || {}));
       (leagueData.addedPlayers || []).forEach((p) => names.add(p.name));
       names.forEach((name) => {
+        if (removed.includes(name)) return;
         const team = getExplicitLeagueRecord(leagueData, name);
         if (team === "Not Yet Decided") {
           if (!unassignedRecord.has(name)) unassignedRecord.set(name, { name, team, isCaptain: false, isNative: false });
@@ -3095,7 +3097,16 @@
   });
 
   document.getElementById("arpChooseRemove").addEventListener("click", () => {
-    const players = getEffectivePlayers().slice().sort((a, b) => a.name.localeCompare(b.name));
+    // This league's own roster (teams + its own unassigned) plus anyone
+    // who's only unassigned in a DIFFERENT league — otherwise a player
+    // who never got added to this league can never show up here at all.
+    const byName = new Map();
+    getEffectivePlayers().forEach((p) => byName.set(p.name, p));
+    getGlobalUnassignedPlayers().forEach((p) => {
+      if (!byName.has(p.name)) byName.set(p.name, p);
+    });
+    const players = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+
     removePlayerSelect.innerHTML = '<option value="">Choose a player&hellip;</option>';
     players.forEach((p) => {
       const option = document.createElement("option");
@@ -3177,13 +3188,19 @@
   });
 
   document.getElementById("confirmRemoveYes").addEventListener("click", () => {
-    // Remove the player entirely rather than just moving them to
-    // "Not Yet Decided" — they disappear from every roster and dropdown.
-    const removed = getRemovedPlayers().slice();
-    if (!removed.includes(pendingRemovalName)) {
-      removed.push(pendingRemovalName);
-    }
-    writeToLeague("removedPlayers", removed);
+    // Remove the player entirely, everywhere — not just from this league.
+    // A player can have a record (roster spot or unassigned placeholder)
+    // in several leagues at once, so "remove completely" means clearing
+    // them out of every league's removedPlayers, not just the one
+    // currently being managed.
+    Object.keys(allLeagues).forEach((id) => {
+      const league = allLeagues[id];
+      const removed = (league.removedPlayers || []).slice();
+      if (!removed.includes(pendingRemovalName)) {
+        removed.push(pendingRemovalName);
+        set(ref(db, "leagues/" + id + "/removedPlayers"), removed);
+      }
+    });
 
     renderRosters();
     closeRemoveConfirmModal();
