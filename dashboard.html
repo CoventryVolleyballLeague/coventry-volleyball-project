@@ -1539,23 +1539,6 @@
       margin-top: 0.4rem;
     }
 
-    /* Right-edge fade to hint a table can be swiped horizontally; only
-       shown once JS confirms the table actually overflows (see
-       initTableScrollHints in the script below). */
-    .table-wrap {
-      position: relative;
-    }
-
-    .table-wrap.has-overflow::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 28px;
-      background: linear-gradient(to right, rgba(255, 255, 255, 0), white);
-      pointer-events: none;
-    }
   }
 </style>
 </head>
@@ -3016,32 +2999,6 @@
   const primaryMobileSections = ["leagues", "live-scores", "schedule", "teams"];
   const bottomNavMore = document.getElementById("bottomNavMore");
 
-  // Mobile-only hint that a table can be swiped sideways (the fade itself
-  // is CSS, gated to the mobile media query — this just tracks which
-  // tables actually overflow, since tables render dynamically all over
-  // the app and re-render on every Firebase update). Declared here, before
-  // showSection() below (which calls scheduleTableScrollHintsUpdate() and
-  // is itself invoked further down during initial hash routing) so the
-  // "let" is past its TDZ by the time that first call happens.
-  let tableScrollHintFrame = null;
-  function updateTableScrollHints() {
-    document.querySelectorAll(".table-wrap").forEach((wrap) => {
-      // Only show the fade while there's still more to scroll to — once the
-      // user reaches the right edge, the fade would otherwise sit on top of
-      // (and obscure) the final column's real data.
-      const canScroll = wrap.scrollWidth > wrap.clientWidth + 1;
-      const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1;
-      wrap.classList.toggle("has-overflow", canScroll && !atEnd);
-    });
-  }
-  function scheduleTableScrollHintsUpdate() {
-    if (tableScrollHintFrame) return;
-    tableScrollHintFrame = requestAnimationFrame(() => {
-      tableScrollHintFrame = null;
-      updateTableScrollHints();
-    });
-  }
-
   function showSection(sectionId) {
     sections.forEach((section) => {
       section.classList.toggle("active", section.id === sectionId);
@@ -3054,11 +3011,6 @@
     if (bottomNavMore) {
       bottomNavMore.classList.toggle("active", !primaryMobileSections.includes(sectionId));
     }
-
-    // Newly-visible tables need their overflow re-checked — toggling the
-    // "active" class doesn't add/remove DOM nodes, so the MutationObserver
-    // below (which only watches childList changes) never catches it.
-    scheduleTableScrollHintsUpdate();
   }
 
   const sidebar = document.querySelector(".sidebar");
@@ -5940,22 +5892,6 @@
     });
     box.insertBefore(closeBtn, box.firstChild);
   });
-
-  window.addEventListener("resize", scheduleTableScrollHintsUpdate);
-  // Scroll events don't bubble, so listen on the capture phase to catch
-  // scrolling inside any .table-wrap (including ones rendered later) via
-  // delegation, rather than binding a listener to each one individually.
-  document.addEventListener(
-    "scroll",
-    (event) => {
-      if (event.target.classList && event.target.classList.contains("table-wrap")) {
-        scheduleTableScrollHintsUpdate();
-      }
-    },
-    true
-  );
-  new MutationObserver(scheduleTableScrollHintsUpdate).observe(document.body, { childList: true, subtree: true });
-  scheduleTableScrollHintsUpdate();
 
   // All Firebase onValue() subscriptions are registered here, last, after
   // every const/let/function they (transitively) depend on has already
