@@ -603,6 +603,18 @@
     text-align: center;
   }
 
+  .schedule-row-status {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .schedule-row-status.is-completed {
+    color: #2e7d32;
+  }
+
   .schedule-row-actions {
     flex: 1;
     display: flex;
@@ -1523,7 +1535,8 @@
 
     .schedule-row-teams,
     .schedule-row-type,
-    .schedule-row-date {
+    .schedule-row-date,
+    .schedule-row-status {
       text-align: left;
       flex: none;
     }
@@ -1532,6 +1545,10 @@
       color: var(--muted);
       font-size: 0.85rem;
       font-weight: 600;
+    }
+
+    .schedule-row-status {
+      font-size: 0.85rem;
     }
 
     .schedule-row-actions {
@@ -4971,10 +4988,12 @@
 
     const sortedIds = ids.slice().sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""));
     const matchTypeLabels = getMatchTypeLabels(sortedIds, schedule);
+    const completedIds = new Set(getCompletedMatchIds(viewState));
 
     sortedIds
       .forEach((id) => {
         const match = schedule[id];
+        const isCompleted = completedIds.has(id);
         const row = document.createElement("div");
         row.className = "schedule-row";
 
@@ -4990,9 +5009,17 @@
         dateCol.className = "schedule-row-date";
         dateCol.textContent = (match.date || "Date TBD") + (match.time ? " at " + formatTime12h(match.time) : "");
 
+        const statusCol = document.createElement("div");
+        statusCol.className = "schedule-row-status";
+        if (isCompleted) {
+          statusCol.classList.add("is-completed");
+          statusCol.textContent = "✅ Completed";
+        }
+
         row.appendChild(teams);
         row.appendChild(typeCol);
         row.appendChild(dateCol);
+        row.appendChild(statusCol);
 
         if (canEdit) {
           const actions = document.createElement("div");
