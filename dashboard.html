@@ -2406,7 +2406,7 @@
     return (remoteState.teamNames && remoteState.teamNames[canonicalTeam]) || canonicalTeam;
   }
 
-  function populateTeamSelect(selectEl, includeNotYetDecided) {
+  function populateTeamSelect(selectEl, includeNotYetDecided, includeTBD) {
     selectEl.innerHTML = '<option value="">Choose a team&hellip;</option>';
     getAllTeamNames().forEach((team) => {
       const option = document.createElement("option");
@@ -2418,6 +2418,12 @@
       const option = document.createElement("option");
       option.value = "Not Yet Decided";
       option.textContent = "Not Yet Decided";
+      selectEl.appendChild(option);
+    }
+    if (includeTBD) {
+      const option = document.createElement("option");
+      option.value = "TBD";
+      option.textContent = "TBD";
       selectEl.appendChild(option);
     }
   }
@@ -5252,8 +5258,8 @@
     if (!leagueId) return;
     scheduleLeagueId = leagueId;
     scheduleMatchTitle.textContent = "Schedule Matches — " + (allLeagues[leagueId].name || leagueId);
-    populateTeamSelect(scheduleTeamASelect, false);
-    populateTeamSelect(scheduleTeamBSelect, false);
+    populateTeamSelect(scheduleTeamASelect, false, true);
+    populateTeamSelect(scheduleTeamBSelect, false, true);
     resetScheduleForm();
     showScheduleScreen("scheduleMatchScreen");
   });
@@ -5265,7 +5271,10 @@
   function checkScheduleTeamsMatch() {
     const teamA = scheduleTeamASelect.value;
     const teamB = scheduleTeamBSelect.value;
-    scheduleTeamError.style.display = teamA && teamB && teamA === teamB ? "block" : "none";
+    // "TBD" on both sides isn't a real conflict — it just means neither
+    // slot is decided yet (e.g. scheduling a Final before the bracket
+    // feeding into it is known).
+    scheduleTeamError.style.display = teamA && teamB && teamA === teamB && teamA !== "TBD" ? "block" : "none";
   }
 
   scheduleTeamASelect.addEventListener("change", checkScheduleTeamsMatch);
@@ -5278,7 +5287,7 @@
     const time = scheduleTimeInput.value;
     if (!teamA || !teamB) return;
 
-    if (teamA === teamB) {
+    if (teamA === teamB && teamA !== "TBD") {
       scheduleTeamError.style.display = "block";
       return;
     }
