@@ -875,6 +875,8 @@
     font-weight: 700;
     color: var(--navy);
     margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
   }
 
   .stat-card .stat-sub {
@@ -1283,6 +1285,23 @@
     font-size: 1.15rem;
     line-height: 1.2;
     margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .team-logo {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    border-radius: 5px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .team-logo-lg {
+    width: 30px;
+    height: 30px;
   }
 
   .team-card ul {
@@ -2522,6 +2541,40 @@
 
   const BASE_TEAMS = ["Invincibles", "Coventry Chasers", "Coventry Sixers", "Crossfires"];
 
+  // Keyed by the canonical team name (stable even if an admin renames a
+  // team's display label), not the display name. Declared this early, next
+  // to BASE_TEAMS, for the same reason as basePlayers/defaultCaptains below —
+  // render functions that use this run from the Firebase onValue callback,
+  // which can fire synchronously on a cached snapshot.
+  const TEAM_LOGOS = {
+    "Invincibles": "images/logos/invincibles.png",
+    "Coventry Chasers": "images/logos/chasers.png",
+    "Coventry Sixers": "images/logos/sixers.png",
+    "Crossfires": "images/logos/crossfires.png"
+  };
+
+  function getTeamLogoSrc(canonicalTeam) {
+    return TEAM_LOGOS[canonicalTeam] || null;
+  }
+
+  function teamLogoImgHtml(canonicalTeam, extraClass) {
+    const src = getTeamLogoSrc(canonicalTeam);
+    if (!src) return "";
+    const cls = extraClass ? "team-logo " + extraClass : "team-logo";
+    return '<img class="' + cls + '" src="' + src + '" alt="" aria-hidden="true">';
+  }
+
+  function createTeamLogoImg(canonicalTeam, extraClass) {
+    const src = getTeamLogoSrc(canonicalTeam);
+    if (!src) return null;
+    const img = document.createElement("img");
+    img.className = extraClass ? "team-logo " + extraClass : "team-logo";
+    img.src = src;
+    img.alt = "";
+    img.setAttribute("aria-hidden", "true");
+    return img;
+  }
+
   // Capture the original hardcoded roster once, before any dynamic rendering
   // touches the DOM. Must run before the Firebase onValue listeners below
   // are registered — Firebase can deliver a cached snapshot synchronously
@@ -3150,7 +3203,12 @@
     const article = document.createElement("article");
     article.className = "team-card";
     const h2 = document.createElement("h2");
-    h2.textContent = displayNameFor(leagueData, team);
+    const logo = createTeamLogoImg(team);
+    if (logo) h2.appendChild(logo);
+    const titleText = document.createElement("span");
+    titleText.className = "team-card-title-text";
+    titleText.textContent = displayNameFor(leagueData, team);
+    h2.appendChild(titleText);
     const ul = document.createElement("ul");
     ul.dataset.team = team;
     article.appendChild(h2);
@@ -3256,7 +3314,20 @@
       const heading = ul.parentElement.querySelector("h2");
       if (heading) {
         const label = team === "Not Yet Decided" ? "Unassigned Players" : displayNameFor(viewLeagueData, team);
-        heading.textContent = label + " (" + count + ")";
+        let titleText = heading.querySelector(".team-card-title-text");
+        // The 4 base team cards ship as static HTML (never passed through
+        // ensureTeamCard), so their <h2> has no logo/span structure yet on
+        // first render — build it once here rather than duplicating the
+        // same markup in two places.
+        if (!titleText) {
+          heading.innerHTML = "";
+          const logo = createTeamLogoImg(team);
+          if (logo) heading.appendChild(logo);
+          titleText = document.createElement("span");
+          titleText.className = "team-card-title-text";
+          heading.appendChild(titleText);
+        }
+        titleText.textContent = label + " (" + count + ")";
       }
     });
 
@@ -3995,9 +4066,9 @@
       card.innerHTML =
         '<div class="set-card-title">Set ' + (i + 1) + '</div>' +
         '<div class="set-score-row">' +
-          '<div class="set-team"><div class="set-team-name">' + nameFor(state.teamA) + '</div><div class="set-team-score">' + set.a + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + teamLogoImgHtml(state.teamA) + nameFor(state.teamA) + '</div><div class="set-team-score">' + set.a + '</div></div>' +
           '<div class="set-vs">vs</div>' +
-          '<div class="set-team"><div class="set-team-name">' + nameFor(state.teamB) + '</div><div class="set-team-score">' + set.b + '</div></div>' +
+          '<div class="set-team"><div class="set-team-name">' + teamLogoImgHtml(state.teamB) + nameFor(state.teamB) + '</div><div class="set-team-score">' + set.b + '</div></div>' +
         '</div>' +
         '<div class="set-card-footer">' +
           '<span>' + set.rallies + ' rallies</span>' +
@@ -4701,14 +4772,20 @@
     const statusFillEl = document.getElementById("statLeagueStatusFill");
 
     const hasTopSeed = completedMatches > 0 && standings.length && standings[0].played > 0;
-    if (topSeedValueEl) topSeedValueEl.textContent = hasTopSeed ? displayNameFor(leagueData, standings[0].team) : "TBD";
+    if (topSeedValueEl) {
+      topSeedValueEl.innerHTML = hasTopSeed
+        ? teamLogoImgHtml(standings[0].team, "team-logo-lg") + escapeHtml(displayNameFor(leagueData, standings[0].team))
+        : "TBD";
+    }
     if (topSeedSubEl) topSeedSubEl.textContent = hasTopSeed ? "Leads by Match Points" : "Updates once matches begin";
 
     const championValueEl = document.getElementById("statChampionValue");
     const championSubEl = document.getElementById("statChampionSub");
     const finalStandings = computeFinalStandings(leagueData);
     if (championValueEl) {
-      championValueEl.textContent = finalStandings.champion ? displayNameFor(leagueData, finalStandings.champion) : "TBD";
+      championValueEl.innerHTML = finalStandings.champion
+        ? teamLogoImgHtml(finalStandings.champion, "team-logo-lg") + escapeHtml(displayNameFor(leagueData, finalStandings.champion))
+        : "TBD";
     }
     if (championSubEl) {
       championSubEl.textContent = finalStandings.champion
@@ -4750,7 +4827,7 @@
           const prText = s.pointRatio === Infinity ? "∞" : s.pointRatio.toFixed(2);
           tr.innerHTML =
             "<td>" + (i + 1) + "</td>" +
-            '<td class="team-cell">' + escapeHtml(displayNameFor(leagueData, s.team)) + "</td>" +
+            '<td class="team-cell">' + teamLogoImgHtml(s.team) + escapeHtml(displayNameFor(leagueData, s.team)) + "</td>" +
             "<td>" + s.played + "</td>" +
             "<td>" + s.wins + "</td>" +
             "<td>" + s.losses + "</td>" +
@@ -4934,7 +5011,7 @@
         tr.innerHTML =
           "<td>#" + (i + 1) + "</td>" +
           '<td class="team-cell">' + escapeHtml(nameLabel) + "</td>" +
-          "<td>" + escapeHtml(teamLabel) + "</td>" +
+          "<td>" + (p.team ? teamLogoImgHtml(p.team) : "") + escapeHtml(teamLabel) + "</td>" +
           "<td>" + p.total + "</td>";
         rankingsBody.appendChild(tr);
       });
@@ -4962,7 +5039,7 @@
         tr.innerHTML =
           "<td>" + escapeHtml(award) + "</td>" +
           '<td class="team-cell">' + escapeHtml(winner.name + (winner.isCaptain ? " (C)" : "")) + "</td>" +
-          "<td>" + escapeHtml(teamLabel) + "</td>" +
+          "<td>" + (winner.team ? teamLogoImgHtml(winner.team) : "") + escapeHtml(teamLabel) + "</td>" +
           "<td>" + winner[key] + "</td>";
       }
       leadersBody.appendChild(tr);
@@ -4999,7 +5076,8 @@
 
         const teams = document.createElement("div");
         teams.className = "schedule-row-teams";
-        teams.textContent = displayNameFor(viewLeagueData, match.teamA) + " vs " + displayNameFor(viewLeagueData, match.teamB);
+        teams.innerHTML = teamLogoImgHtml(match.teamA) + escapeHtml(displayNameFor(viewLeagueData, match.teamA)) +
+          " vs " + teamLogoImgHtml(match.teamB) + escapeHtml(displayNameFor(viewLeagueData, match.teamB));
 
         const typeCol = document.createElement("div");
         typeCol.className = "schedule-row-type";
