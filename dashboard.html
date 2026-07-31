@@ -3026,7 +3026,12 @@
   let tableScrollHintFrame = null;
   function updateTableScrollHints() {
     document.querySelectorAll(".table-wrap").forEach((wrap) => {
-      wrap.classList.toggle("has-overflow", wrap.scrollWidth > wrap.clientWidth + 1);
+      // Only show the fade while there's still more to scroll to — once the
+      // user reaches the right edge, the fade would otherwise sit on top of
+      // (and obscure) the final column's real data.
+      const canScroll = wrap.scrollWidth > wrap.clientWidth + 1;
+      const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1;
+      wrap.classList.toggle("has-overflow", canScroll && !atEnd);
     });
   }
   function scheduleTableScrollHintsUpdate() {
@@ -5937,6 +5942,18 @@
   });
 
   window.addEventListener("resize", scheduleTableScrollHintsUpdate);
+  // Scroll events don't bubble, so listen on the capture phase to catch
+  // scrolling inside any .table-wrap (including ones rendered later) via
+  // delegation, rather than binding a listener to each one individually.
+  document.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target.classList && event.target.classList.contains("table-wrap")) {
+        scheduleTableScrollHintsUpdate();
+      }
+    },
+    true
+  );
   new MutationObserver(scheduleTableScrollHintsUpdate).observe(document.body, { childList: true, subtree: true });
   scheduleTableScrollHintsUpdate();
 
