@@ -149,6 +149,29 @@
     font-size: 0.85rem;
   }
 
+  /* Mobile-only nav additions (icons, drawer backdrop, bottom tab bar).
+     Hidden by default so desktop is completely unaffected; each is only
+     switched on inside the max-width:680px query below. */
+  .nav-icon {
+    display: none;
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 43, 74, 0.5);
+    z-index: 205;
+  }
+
+  .sidebar-close-btn {
+    display: none;
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
   .main {
     flex: 1;
     padding: 2.5rem 2rem;
@@ -1316,43 +1339,136 @@
 
   @media (max-width: 680px) {
     header {
-      padding: 1.25rem 3.5rem 1.25rem 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 150;
+      padding: 0.65rem 3.25rem 0.65rem 1rem;
+      text-align: left;
     }
 
     header .brand {
-      align-items: center;
-      gap: 0.35rem;
+      display: block;
+      font-size: 1.3rem;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    header .brand .league {
+      display: inline;
     }
 
     header .tagline {
-      width: 100%;
-      margin-bottom: 0;
-      text-align: right;
-      white-space: normal;
+      display: none;
     }
 
     .menu-toggle {
       display: flex;
+      top: 50%;
+      transform: translateY(-50%);
     }
 
     .layout {
       display: block;
-    }
-
-    .sidebar {
-      display: none;
-      width: 100%;
-      padding: 0.5rem 0;
-      border-right: 0;
-      border-bottom: 1px solid #e5e0d5;
-    }
-
-    .sidebar.mobile-open {
-      display: block;
+      min-height: 0;
     }
 
     .main {
-      padding: 2rem 1.25rem;
+      padding: 1.25rem 1.1rem calc(1.25rem + 64px + env(safe-area-inset-bottom));
+    }
+
+    /* Sidebar becomes a slide-in drawer instead of a full-width dropdown */
+    .sidebar {
+      display: block;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: min(82vw, 300px);
+      padding: 3.25rem 0 1.5rem;
+      border-right: 0;
+      border-bottom: 0;
+      z-index: 210;
+      overflow-y: auto;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: 12px 0 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .sidebar.mobile-open {
+      transform: translateX(0);
+    }
+
+    .sidebar-backdrop.mobile-open {
+      display: block;
+    }
+
+    .sidebar-close-btn {
+      display: block;
+    }
+
+    .nav-icon {
+      display: inline-block;
+      width: 1.4em;
+      margin-right: 0.5rem;
+      text-align: center;
+    }
+
+    .sidebar a {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+
+    .bottom-nav {
+      display: flex;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 150;
+      background: white;
+      border-top: 1px solid #e5e0d5;
+      box-shadow: 0 -6px 20px rgba(28, 43, 74, 0.08);
+      padding: 0.4rem 0.25rem calc(0.4rem + env(safe-area-inset-bottom));
+    }
+
+    .bottom-nav a,
+    .bottom-nav button {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.15rem;
+      background: none;
+      border: none;
+      color: var(--muted);
+      text-decoration: none;
+      font-family: inherit;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.35rem 0.1rem;
+      min-height: 48px;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    .bottom-nav .bottom-nav-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .bottom-nav a.active,
+    .bottom-nav button.active {
+      color: var(--navy);
+      background: var(--cream);
+    }
+
+    .bottom-nav a.live-tab {
+      color: #d32f2f;
     }
 
     .team-grid {
@@ -1365,6 +1481,71 @@
 
     .settings-actions {
       grid-template-columns: 1fr;
+    }
+
+    /* Comfortable tap targets + prevent iOS Safari's auto-zoom on focus
+       (which kicks in whenever a form field's font-size is under 16px). */
+    .settings-action-btn,
+    .modal-actions button,
+    button.btn-save-rally,
+    button.btn-clear-rally,
+    button.btn-remove-player {
+      min-height: 44px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      font-size: 16px;
+    }
+
+    .modal-box {
+      padding: 1.5rem;
+    }
+
+    /* Schedule rows were forcing 3 equal-width flex columns into 375px,
+       wrapping team names/dates into cramped multi-line fragments —
+       stack them instead. */
+    .schedule-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.35rem;
+    }
+
+    .schedule-row-teams,
+    .schedule-row-type,
+    .schedule-row-date {
+      text-align: left;
+      flex: none;
+    }
+
+    .schedule-row-type {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .schedule-row-actions {
+      justify-content: flex-start;
+      margin-top: 0.4rem;
+    }
+
+    /* Right-edge fade to hint a table can be swiped horizontally; only
+       shown once JS confirms the table actually overflows (see
+       initTableScrollHints in the script below). */
+    .table-wrap {
+      position: relative;
+    }
+
+    .table-wrap.has-overflow::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 28px;
+      background: linear-gradient(to right, rgba(255, 255, 255, 0), white);
+      pointer-events: none;
     }
   }
 </style>
@@ -1381,20 +1562,23 @@
   </div>
 </header>
 
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
 <div class="layout">
   <div class="sidebar">
-    <a class="nav-link active" href="#leagues" data-section="leagues">Leagues</a>
+    <button type="button" class="modal-close-btn sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close menu">&times;</button>
+    <a class="nav-link active" href="#leagues" data-section="leagues"><span class="nav-icon" aria-hidden="true">🏆</span>Leagues</a>
     <a class="nav-link live-tab" href="#live-scores" data-section="live-scores">🔴 Current Match Live Scores</a>
-    <a class="nav-link" href="#previous-results" data-section="previous-results">Previous Match Results</a>
-    <a class="nav-link" href="#mvp-standings" data-section="mvp-standings">MVP Standings</a>
-    <a class="nav-link admin-only" href="#score-updates" data-section="score-updates">Score Updates</a>
-    <a class="nav-link" href="#teams" data-section="teams">Teams and Players</a>
-    <a class="nav-link" href="#schedule" data-section="schedule">Schedule</a>
-    <a class="nav-link" href="#league-rules" data-section="league-rules">League Rules</a>
-    <a class="nav-link admin-only" href="#settings" data-section="settings">Settings</a>
-    <a class="nav-link admin-only" href="#history" data-section="history">History</a>
-    <a class="nav-link" href="#feedback" data-section="feedback">Feedback</a>
-    <a class="nav-link" href="#about" data-section="about">About Us</a>
+    <a class="nav-link" href="#previous-results" data-section="previous-results"><span class="nav-icon" aria-hidden="true">📋</span>Previous Match Results</a>
+    <a class="nav-link" href="#mvp-standings" data-section="mvp-standings"><span class="nav-icon" aria-hidden="true">⭐</span>MVP Standings</a>
+    <a class="nav-link admin-only" href="#score-updates" data-section="score-updates"><span class="nav-icon" aria-hidden="true">🖊️</span>Score Updates</a>
+    <a class="nav-link" href="#teams" data-section="teams"><span class="nav-icon" aria-hidden="true">👥</span>Teams and Players</a>
+    <a class="nav-link" href="#schedule" data-section="schedule"><span class="nav-icon" aria-hidden="true">📅</span>Schedule</a>
+    <a class="nav-link" href="#league-rules" data-section="league-rules"><span class="nav-icon" aria-hidden="true">📖</span>League Rules</a>
+    <a class="nav-link admin-only" href="#settings" data-section="settings"><span class="nav-icon" aria-hidden="true">⚙️</span>Settings</a>
+    <a class="nav-link admin-only" href="#history" data-section="history"><span class="nav-icon" aria-hidden="true">🕘</span>History</a>
+    <a class="nav-link" href="#feedback" data-section="feedback"><span class="nav-icon" aria-hidden="true">💬</span>Feedback</a>
+    <a class="nav-link" href="#about" data-section="about"><span class="nav-icon" aria-hidden="true">ℹ️</span>About Us</a>
     <div class="switch-role">
       <a href="index.html" id="switchRoleLink">Switch role</a>
     </div>
@@ -1421,6 +1605,14 @@
       <button class="close-btn" id="photoModalClose" aria-label="Close">&times;</button>
       <img src="images/about-team.jpg" alt="Coventry Volleyball League group photo at a game night, enlarged">
     </div>
+
+    <nav class="bottom-nav" id="bottomNav">
+      <a class="bottom-nav-link" href="#leagues" data-section="leagues"><span class="bottom-nav-icon">🏆</span><span>Leagues</span></a>
+      <a class="bottom-nav-link live-tab" href="#live-scores" data-section="live-scores"><span class="bottom-nav-icon">🔴</span><span>Live</span></a>
+      <a class="bottom-nav-link" href="#schedule" data-section="schedule"><span class="bottom-nav-icon">📅</span><span>Schedule</span></a>
+      <a class="bottom-nav-link" href="#teams" data-section="teams"><span class="bottom-nav-icon">👥</span><span>Teams</span></a>
+      <button type="button" id="bottomNavMore"><span class="bottom-nav-icon">☰</span><span>More</span></button>
+    </nav>
 
     <section class="page-section active" id="leagues">
       <h1>Leagues</h1>
@@ -2324,6 +2516,27 @@
 
   const BASE_TEAMS = ["Invincibles", "Coventry Chasers", "Coventry Sixers", "Crossfires"];
 
+  // Capture the original hardcoded roster once, before any dynamic rendering
+  // touches the DOM. Must run before the Firebase onValue listeners below
+  // are registered — Firebase can deliver a cached snapshot synchronously
+  // (e.g. on a warm reload), and getEffectivePlayersFrom() reads these on
+  // the very first callback, so declaring them any later risks a
+  // "Cannot access before initialization" error on that first invocation.
+  // Captain status is tracked separately from the name so captaincy can
+  // move between players.
+  const basePlayers = [];
+  const defaultCaptains = {};
+  document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
+    ul.querySelectorAll("li").forEach((li) => {
+      if (li.classList.contains("empty-note")) return;
+      const isCaptain = li.classList.contains("captain");
+      const name = li.textContent.replace(/\s*\(C\)$/, "");
+      const team = ul.dataset.team;
+      basePlayers.push({ name, team });
+      if (isCaptain) defaultCaptains[team] = name;
+    });
+  });
+
   let allLeagues = {};
   let allTeams = {};
   let removedTeams = {};
@@ -2529,34 +2742,6 @@
     viewLeagueData = viewLeagueId ? allLeagues[viewLeagueId] : null;
     viewState = buildLeagueState(viewLeagueData, viewLeagueId);
   }
-
-  onValue(ref(db, "leagues"), (snapshot) => {
-    const data = snapshot.val() || {};
-    activeLeagueId = data._active || null;
-    allLeagues = {};
-    Object.keys(data).forEach((key) => {
-      if (key === "_active") return;
-      allLeagues[key] = data[key];
-    });
-
-    remoteState = buildLeagueState(activeLeagueId ? allLeagues[activeLeagueId] : null, activeLeagueId);
-    recomputeViewState();
-
-    selectedMatchId = resolveSelectedMatchId(getSortedScheduleIds());
-
-    renderTeamGrid();
-    renderRosters();
-    renderAll();
-    renderHistoryList();
-    renderActiveLeagueLabel();
-    renderStorageEstimate(data);
-    renderScheduleMatchList();
-    renderPublicSchedule();
-    renderLeaguesTab();
-    renderViewLeagueSelectors();
-    renderPreviousMatchSelect();
-    renderMvpStandings();
-  });
 
   const previousMatchSelectEl = document.getElementById("previousMatchSelect");
   if (previousMatchSelectEl) {
@@ -2780,22 +2965,6 @@
     return div.innerHTML;
   }
 
-  onValue(ref(db, "feedback"), (snapshot) => {
-    renderFeedbackInbox(snapshot.val() || {});
-  });
-
-  onValue(ref(db, "teams"), (snapshot) => {
-    allTeams = snapshot.val() || {};
-    renderTeamGrid();
-    renderRosters();
-  });
-
-  onValue(ref(db, "removedTeams"), (snapshot) => {
-    removedTeams = snapshot.val() || {};
-    renderTeamGrid();
-    renderRosters();
-  });
-
   const feedbackForm = document.getElementById("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", (event) => {
@@ -2832,8 +3001,35 @@
     sessionStorage.removeItem("role");
   });
 
-  const navLinks = document.querySelectorAll(".nav-link");
+  // .bottom-nav-link (the 4 primary mobile tabs) shares the exact same
+  // section-switching/active-highlighting as the sidebar's .nav-link —
+  // #bottomNavMore is deliberately excluded here since it doesn't navigate
+  // to a section, it just opens the drawer (wired separately below).
+  const navLinks = document.querySelectorAll(".nav-link, .bottom-nav-link");
   const sections = document.querySelectorAll(".page-section");
+  const primaryMobileSections = ["leagues", "live-scores", "schedule", "teams"];
+  const bottomNavMore = document.getElementById("bottomNavMore");
+
+  // Mobile-only hint that a table can be swiped sideways (the fade itself
+  // is CSS, gated to the mobile media query — this just tracks which
+  // tables actually overflow, since tables render dynamically all over
+  // the app and re-render on every Firebase update). Declared here, before
+  // showSection() below (which calls scheduleTableScrollHintsUpdate() and
+  // is itself invoked further down during initial hash routing) so the
+  // "let" is past its TDZ by the time that first call happens.
+  let tableScrollHintFrame = null;
+  function updateTableScrollHints() {
+    document.querySelectorAll(".table-wrap").forEach((wrap) => {
+      wrap.classList.toggle("has-overflow", wrap.scrollWidth > wrap.clientWidth + 1);
+    });
+  }
+  function scheduleTableScrollHintsUpdate() {
+    if (tableScrollHintFrame) return;
+    tableScrollHintFrame = requestAnimationFrame(() => {
+      tableScrollHintFrame = null;
+      updateTableScrollHints();
+    });
+  }
 
   function showSection(sectionId) {
     sections.forEach((section) => {
@@ -2843,15 +3039,45 @@
     navLinks.forEach((link) => {
       link.classList.toggle("active", link.dataset.section === sectionId);
     });
+
+    if (bottomNavMore) {
+      bottomNavMore.classList.toggle("active", !primaryMobileSections.includes(sectionId));
+    }
+
+    // Newly-visible tables need their overflow re-checked — toggling the
+    // "active" class doesn't add/remove DOM nodes, so the MutationObserver
+    // below (which only watches childList changes) never catches it.
+    scheduleTableScrollHintsUpdate();
   }
 
   const sidebar = document.querySelector(".sidebar");
   const menuToggle = document.getElementById("menuToggle");
+  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+  const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
+
+  function setSidebarOpen(isOpen) {
+    sidebar.classList.toggle("mobile-open", isOpen);
+    if (sidebarBackdrop) sidebarBackdrop.classList.toggle("mobile-open", isOpen);
+    menuToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
 
   menuToggle.addEventListener("click", () => {
-    const isOpen = sidebar.classList.toggle("mobile-open");
-    menuToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    setSidebarOpen(!sidebar.classList.contains("mobile-open"));
   });
+
+  if (bottomNavMore) {
+    bottomNavMore.addEventListener("click", () => {
+      setSidebarOpen(!sidebar.classList.contains("mobile-open"));
+    });
+  }
+
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", () => setSidebarOpen(false));
+  }
+
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener("click", () => setSidebarOpen(false));
+  }
 
   navLinks.forEach((link) => {
     link.addEventListener("click", (event) => {
@@ -2859,8 +3085,7 @@
       const sectionId = link.dataset.section;
       showSection(sectionId);
       history.replaceState(null, "", `#${sectionId}`);
-      sidebar.classList.remove("mobile-open");
-      menuToggle.setAttribute("aria-expanded", "false");
+      setSidebarOpen(false);
     });
   });
 
@@ -2901,21 +3126,6 @@
       document.getElementById("editScheduleMatchModal").classList.remove("open");
       document.getElementById("removeScheduleMatchConfirmModal").classList.remove("open");
     }
-  });
-
-  // Capture the original hardcoded roster once, before any dynamic rendering touches the DOM.
-  // Captain status is tracked separately from the name so captaincy can move between players.
-  const basePlayers = [];
-  const defaultCaptains = {};
-  document.querySelectorAll(".team-card ul[data-team]").forEach((ul) => {
-    ul.querySelectorAll("li").forEach((li) => {
-      if (li.classList.contains("empty-note")) return;
-      const isCaptain = li.classList.contains("captain");
-      const name = li.textContent.replace(/\s*\(C\)$/, "");
-      const team = ul.dataset.team;
-      basePlayers.push({ name, team });
-      if (isCaptain) defaultCaptains[team] = name;
-    });
   });
 
   function getAddedPlayers() {
@@ -5723,6 +5933,61 @@
       }
     });
     box.insertBefore(closeBtn, box.firstChild);
+  });
+
+  window.addEventListener("resize", scheduleTableScrollHintsUpdate);
+  new MutationObserver(scheduleTableScrollHintsUpdate).observe(document.body, { childList: true, subtree: true });
+  scheduleTableScrollHintsUpdate();
+
+  // All Firebase onValue() subscriptions are registered here, last, after
+  // every const/let/function they (transitively) depend on has already
+  // been declared. Firebase can deliver a cached snapshot synchronously —
+  // e.g. on a warm reload — so a callback registered earlier in the file
+  // can fire before a later "const" line has run, throwing a "Cannot
+  // access before initialization" TDZ error. Function declarations are
+  // hoisted so their order never mattered; only these subscriptions did.
+  onValue(ref(db, "leagues"), (snapshot) => {
+    const data = snapshot.val() || {};
+    activeLeagueId = data._active || null;
+    allLeagues = {};
+    Object.keys(data).forEach((key) => {
+      if (key === "_active") return;
+      allLeagues[key] = data[key];
+    });
+
+    remoteState = buildLeagueState(activeLeagueId ? allLeagues[activeLeagueId] : null, activeLeagueId);
+    recomputeViewState();
+
+    selectedMatchId = resolveSelectedMatchId(getSortedScheduleIds());
+
+    renderTeamGrid();
+    renderRosters();
+    renderAll();
+    renderHistoryList();
+    renderActiveLeagueLabel();
+    renderStorageEstimate(data);
+    renderScheduleMatchList();
+    renderPublicSchedule();
+    renderLeaguesTab();
+    renderViewLeagueSelectors();
+    renderPreviousMatchSelect();
+    renderMvpStandings();
+  });
+
+  onValue(ref(db, "feedback"), (snapshot) => {
+    renderFeedbackInbox(snapshot.val() || {});
+  });
+
+  onValue(ref(db, "teams"), (snapshot) => {
+    allTeams = snapshot.val() || {};
+    renderTeamGrid();
+    renderRosters();
+  });
+
+  onValue(ref(db, "removedTeams"), (snapshot) => {
+    removedTeams = snapshot.val() || {};
+    renderTeamGrid();
+    renderRosters();
   });
 
   renderAll();
