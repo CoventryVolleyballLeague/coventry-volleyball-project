@@ -1575,6 +1575,26 @@
       margin-top: 0.4rem;
     }
 
+    /* Match the compact type scale already used by the set-score cards
+       above it — the rally log otherwise stands out as noticeably larger
+       on a phone screen. */
+    .rally-log-heading {
+      font-size: 0.95rem;
+    }
+
+    table.rally-log-table {
+      font-size: 0.8rem;
+    }
+
+    table.rally-log-table th {
+      font-size: 0.68rem;
+      padding: 0.55rem 0.7rem;
+    }
+
+    table.rally-log-table td {
+      padding: 0.5rem 0.7rem;
+    }
+
   }
 </style>
 </head>
@@ -1634,8 +1654,8 @@
     <nav class="bottom-nav" id="bottomNav">
       <a class="bottom-nav-link" href="#leagues" data-section="leagues"><span class="bottom-nav-icon">🏆</span><span>Leagues</span></a>
       <a class="bottom-nav-link live-tab" href="#live-scores" data-section="live-scores"><span class="bottom-nav-icon">🔴</span><span>Live</span></a>
+      <a class="bottom-nav-link" href="#previous-results" data-section="previous-results"><span class="bottom-nav-icon">📋</span><span>Results</span></a>
       <a class="bottom-nav-link" href="#schedule" data-section="schedule"><span class="bottom-nav-icon">📅</span><span>Schedule</span></a>
-      <a class="bottom-nav-link" href="#teams" data-section="teams"><span class="bottom-nav-icon">👥</span><span>Teams</span></a>
       <button type="button" id="bottomNavMore"><span class="bottom-nav-icon">☰</span><span>More</span></button>
     </nav>
 
@@ -3066,7 +3086,7 @@
   // to a section, it just opens the drawer (wired separately below).
   const navLinks = document.querySelectorAll(".nav-link, .bottom-nav-link");
   const sections = document.querySelectorAll(".page-section");
-  const primaryMobileSections = ["leagues", "live-scores", "schedule", "teams"];
+  const primaryMobileSections = ["leagues", "live-scores", "previous-results", "schedule"];
   const bottomNavMore = document.getElementById("bottomNavMore");
 
   function showSection(sectionId) {
@@ -4125,7 +4145,7 @@
     const wrap = document.createElement("div");
 
     const heading = document.createElement("h2");
-    heading.className = "section-heading";
+    heading.className = "section-heading rally-log-heading";
     heading.textContent = "Set " + (setIndex + 1) + " Rally Log";
     wrap.appendChild(heading);
 
@@ -4133,7 +4153,7 @@
     tableWrap.className = "table-wrap";
 
     const table = document.createElement("table");
-    table.className = "data-table";
+    table.className = "data-table rally-log-table";
     const thead = document.createElement("thead");
     thead.innerHTML =
       "<tr><th>Rally No.</th><th>Winning Team</th><th>Player</th><th>Point Type</th><th>" +
