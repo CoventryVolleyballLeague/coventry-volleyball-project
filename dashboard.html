@@ -364,6 +364,100 @@
     transform: translateY(-3px);
   }
 
+  .guide-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--navy);
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 1.25rem;
+  }
+
+  .guide-back-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Native <details>/<summary> gives a touch-friendly accordion for free —
+     no extra JS, and each topic starts collapsed so the page is short and
+     scannable, especially on a phone screen. */
+  .guide-topic {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-radius: 8px;
+    margin-bottom: 0.9rem;
+    box-shadow: 0 8px 20px rgba(28, 43, 74, 0.08);
+    overflow: hidden;
+  }
+
+  .guide-topic summary {
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--navy);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .guide-topic summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .guide-topic summary::after {
+    content: "+";
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .guide-topic[open] summary {
+    border-bottom: 1px solid #e5e0d5;
+  }
+
+  .guide-topic[open] summary::after {
+    transform: rotate(45deg);
+  }
+
+  .guide-wizard {
+    padding: 1rem 1.25rem;
+  }
+
+  .guide-wizard + .guide-wizard {
+    border-top: 1px solid #f0ebe1;
+  }
+
+  .guide-wizard h3 {
+    color: var(--navy);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .guide-wizard ol {
+    margin-left: 1.2rem;
+    color: var(--text);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+
+  .guide-wizard ol li {
+    margin-bottom: 0.3rem;
+  }
+
+  .guide-wizard ol li:last-child {
+    margin-bottom: 0;
+  }
+
   #activeLeagueLabel {
     display: block;
     margin-top: 0.5rem;
@@ -1595,6 +1689,16 @@
       padding: 0.5rem 0.7rem;
     }
 
+    .guide-topic summary {
+      padding: 0.9rem 1rem;
+      min-height: 44px;
+      font-size: 1rem;
+    }
+
+    .guide-wizard {
+      padding: 0.9rem 1rem;
+    }
+
   }
 </style>
 </head>
@@ -2050,6 +2154,247 @@
       <div class="settings-actions">
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
+
+      <h2 class="section-heading">Help</h2>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="adminGuideBtn">Admin Guide</button>
+      </div>
+    </section>
+
+    <section class="page-section" id="admin-guide">
+      <button type="button" class="guide-back-link" id="adminGuideBackBtn">&larr; Back to Settings</button>
+      <h1>Admin Guide</h1>
+      <p class="section-note">Step-by-step instructions for every admin action in this app. Tap a topic below to expand it.</p>
+
+      <details class="guide-topic">
+        <summary>Leagues</summary>
+
+        <div class="guide-wizard">
+          <h3>Create a New League</h3>
+          <ol>
+            <li>Go to Settings &rarr; League Settings &rarr; <strong>Create a new League</strong>.</li>
+            <li>Enter a League Name (e.g. "Fall 2026") and tap <strong>Next</strong>.</li>
+            <li>Choose Yes/No for each team to decide which teams are part of this league, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Edit a League</h3>
+          <ol>
+            <li>Tap <strong>Edit a League</strong>.</li>
+            <li>Select the league from the dropdown.</li>
+            <li>Update its team selection as needed, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Remove a League</h3>
+          <ol>
+            <li>Tap <strong>Remove a League</strong>.</li>
+            <li>Select the league to remove, then tap <strong>Save</strong>.</li>
+            <li>Confirm the deletion when asked &mdash; this permanently deletes the league.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Activate/Archive a League</h3>
+          <ol>
+            <li>Tap <strong>Activate/Archive a League</strong>.</li>
+            <li>Mark each league Active or Archived &mdash; more than one league can be Active at the same time.</li>
+            <li>Tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>Teams</summary>
+
+        <div class="guide-wizard">
+          <h3>Create a New Team</h3>
+          <ol>
+            <li>Go to Settings &rarr; Team Settings &rarr; <strong>Create a new Team</strong>.</li>
+            <li>Enter the new team's name and tap <strong>Next</strong>.</li>
+            <li>Select the players for its roster, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Change Team Name</h3>
+          <ol>
+            <li>Tap <strong>Change Team Name</strong>.</li>
+            <li>Select the team, enter its new name, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Remove a Team</h3>
+          <ol>
+            <li>Tap <strong>Remove a Team</strong>.</li>
+            <li>Select the team, then tap <strong>Save</strong> &mdash; this removes it right away.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Change Team Captains</h3>
+          <ol>
+            <li>Tap <strong>Change Team Captains</strong>.</li>
+            <li>Select the team &mdash; its current captain is shown.</li>
+            <li>Choose the new captain, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>Players</summary>
+
+        <div class="guide-wizard">
+          <h3>Add a Player</h3>
+          <ol>
+            <li>Go to Settings &rarr; Player Settings &rarr; <strong>Add/Remove Player</strong> &rarr; <strong>Add Player</strong>.</li>
+            <li>Enter the player's name and select their team.</li>
+            <li>Tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Remove a Player</h3>
+          <ol>
+            <li>Tap <strong>Add/Remove Player</strong> &rarr; <strong>Remove Player</strong>.</li>
+            <li>Select the player &mdash; their current team is shown.</li>
+            <li>Tap <strong>Remove</strong>, then confirm &mdash; this removes them completely, not just from one team.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Trade a Player</h3>
+          <ol>
+            <li>Tap <strong>Trade a Player</strong>.</li>
+            <li>Select the player &mdash; their current team is shown.</li>
+            <li>Select their new team, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Assign Players to a Team</h3>
+          <ol>
+            <li>Tap <strong>Assign Players to a Team</strong>.</li>
+            <li>Check the players you want to assign.</li>
+            <li>Select the team, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Unassign a Player</h3>
+          <ol>
+            <li>Tap <strong>Unassign a Player</strong>.</li>
+            <li>Check the players to unassign, then tap <strong>Save</strong>.</li>
+            <li>Confirm &mdash; this moves them to the unassigned pool rather than removing them.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>Schedule</summary>
+
+        <div class="guide-wizard">
+          <h3>Create a Schedule for a League</h3>
+          <ol>
+            <li>Go to Settings &rarr; Schedule Settings &rarr; <strong>Create a Schedule for a League</strong>.</li>
+            <li>Select the league, then tap <strong>Create a Schedule</strong>.</li>
+            <li>Pick Team A, Team B, the match date and time, and the Match Type (League Match, 2nd Runners Up, Semi Finals, or Finals).</li>
+            <li>Tap <strong>Save</strong>, then <strong>Add Schedule for another match</strong> to keep going, or tap <strong>Save</strong> at the bottom to finish.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Edit a Match's Date &amp; Time</h3>
+          <ol>
+            <li>On the Schedule tab, tap <strong>Edit</strong> on a match.</li>
+            <li>Update the date and/or time, then tap <strong>Save</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Remove a Match</h3>
+          <ol>
+            <li>On the Schedule tab, tap <strong>Remove</strong> on a match.</li>
+            <li>Confirm to remove it from the schedule.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>Score Updates</summary>
+
+        <div class="guide-wizard">
+          <h3>Enter Rally-by-Rally Scores</h3>
+          <ol>
+            <li>Go to the Score Updates tab.</li>
+            <li>Select the Match and Set.</li>
+            <li>Select the Winning Team, and optionally the Player and Point Type, plus any Notes.</li>
+            <li>Tap <strong>Save Rally</strong> &mdash; the live scoreboard updates instantly for every visitor.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Share a Score Update</h3>
+          <ol>
+            <li>Tap <strong>Share Update</strong> on the Current Match Score card to send the latest score over WhatsApp.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Reset a Match</h3>
+          <ol>
+            <li>Tap <strong>Reset Match</strong>.</li>
+            <li>Confirm &mdash; this clears all set scores and the rally log for the current match.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>History</summary>
+
+        <div class="guide-wizard">
+          <h3>View Storage Usage</h3>
+          <ol>
+            <li>Go to the History tab to see the estimated Firebase storage used against the free-tier limit.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Delete a League Permanently</h3>
+          <ol>
+            <li>Find the league in the History list and tap <strong>Delete</strong>.</li>
+            <li>Confirm &mdash; this permanently clears its rosters, trades, scores, and rally log. This can't be undone.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="guide-topic">
+        <summary>Feedback</summary>
+
+        <div class="guide-wizard">
+          <h3>Review Feedback</h3>
+          <ol>
+            <li>Go to the Feedback tab to see every submission, most recent first.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Mark Feedback Status</h3>
+          <ol>
+            <li>Use the status dropdown on any feedback entry to mark it <strong>Open</strong> or <strong>Completed</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-wizard">
+          <h3>Delete Feedback</h3>
+          <ol>
+            <li>Tap <strong>Delete</strong> on a feedback entry to remove it.</li>
+          </ol>
+        </div>
+      </details>
     </section>
 
     <section class="page-section" id="history">
@@ -3137,10 +3482,27 @@
     });
   });
 
-  const adminOnlySections = ["settings", "score-updates", "history"];
+  const adminOnlySections = ["settings", "score-updates", "history", "admin-guide"];
   const initialSection = location.hash.replace("#", "") || "leagues";
   if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
+  }
+
+  // The Admin Guide is a sub-page of Settings, not a top-level nav item, so
+  // it's reached via a plain button rather than a .nav-link/.bottom-nav-link.
+  const adminGuideBtn = document.getElementById("adminGuideBtn");
+  if (adminGuideBtn) {
+    adminGuideBtn.addEventListener("click", () => {
+      showSection("admin-guide");
+      history.replaceState(null, "", "#admin-guide");
+    });
+  }
+  const adminGuideBackBtn = document.getElementById("adminGuideBackBtn");
+  if (adminGuideBackBtn) {
+    adminGuideBackBtn.addEventListener("click", () => {
+      showSection("settings");
+      history.replaceState(null, "", "#settings");
+    });
   }
 
   const photoModal = document.getElementById("photoModal");
