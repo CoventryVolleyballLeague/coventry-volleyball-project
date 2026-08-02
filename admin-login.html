@@ -120,6 +120,11 @@
 
   <form id="credentialsForm">
     <div class="field">
+      <label for="adminName">Your Name</label>
+      <input type="text" id="adminName" name="adminName" autocomplete="name" placeholder="e.g. Sandeep" required>
+    </div>
+
+    <div class="field">
       <label for="username">Username</label>
       <input type="text" id="username" name="username" autocomplete="username">
     </div>
@@ -140,9 +145,18 @@
 <script>
   document.getElementById("credentialsForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    const adminName = document.getElementById("adminName").value.trim();
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value.trim();
     const errorMsg = document.getElementById("errorMsg");
+
+    // "required" on the field blocks empty submissions natively, but a
+    // whitespace-only name would slip past that — catch it here too so
+    // every log entry can always be attributed to someone.
+    if (!adminName) {
+      document.getElementById("adminName").focus();
+      return;
+    }
 
     if (username !== "Coventry123" || password !== "PaintersWay123$") {
       errorMsg.classList.add("visible");
@@ -151,6 +165,7 @@
 
     errorMsg.classList.remove("visible");
     sessionStorage.setItem("role", "admin");
+    sessionStorage.setItem("adminName", adminName);
     location.href = "dashboard.html";
   });
 </script>
