@@ -116,21 +116,22 @@
 <body>
 
 <div class="login-card">
-  <h1>Please enter your credentials</h1>
+  <h1>Please enter Admin credentials</h1>
 
   <form id="credentialsForm">
     <div class="field">
-      <label for="adminName">Your Name</label>
-      <input type="text" id="adminName" name="adminName" autocomplete="name" placeholder="e.g. Sandeep" required>
+      <label for="adminName">Your Name *</label>
+      <input type="text" id="adminName" name="adminName" autocomplete="name" placeholder="e.g. Mani">
+      <p class="error" id="nameErrorMsg">Please enter your name.</p>
     </div>
 
     <div class="field">
-      <label for="username">Username</label>
+      <label for="username">Admin Username</label>
       <input type="text" id="username" name="username" autocomplete="username">
     </div>
 
     <div class="field">
-      <label for="password">Password</label>
+      <label for="password">Admin Password</label>
       <input type="password" id="password" name="password" autocomplete="current-password">
     </div>
 
@@ -149,23 +150,34 @@
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value.trim();
     const errorMsg = document.getElementById("errorMsg");
+    const nameErrorMsg = document.getElementById("nameErrorMsg");
+    errorMsg.classList.remove("visible");
+    nameErrorMsg.classList.remove("visible");
 
-    // "required" on the field blocks empty submissions natively, but a
-    // whitespace-only name would slip past that — catch it here too so
-    // every log entry can always be attributed to someone.
-    if (!adminName) {
-      document.getElementById("adminName").focus();
-      return;
-    }
+    const isRegularAdmin = username === "Coventry123" && password === "PaintersWay123$";
+    const isSuperUser = username === "Mani123" && password === "Mani123$";
 
-    if (username !== "Coventry123" || password !== "PaintersWay123$") {
+    if (!isRegularAdmin && !isSuperUser) {
       errorMsg.classList.add("visible");
       return;
     }
 
-    errorMsg.classList.remove("visible");
+    // Regular admins must identify themselves so log entries can always be
+    // attributed to a person. The super user's identity is implied by their
+    // credentials, so this step is skipped for them.
+    if (isRegularAdmin && !adminName) {
+      nameErrorMsg.classList.add("visible");
+      document.getElementById("adminName").focus();
+      return;
+    }
+
     sessionStorage.setItem("role", "admin");
-    sessionStorage.setItem("adminName", adminName);
+    sessionStorage.setItem("adminName", isSuperUser ? "Mani" : adminName);
+    if (isSuperUser) {
+      sessionStorage.setItem("isSuperUser", "true");
+    } else {
+      sessionStorage.removeItem("isSuperUser");
+    }
     location.href = "dashboard.html";
   });
 </script>

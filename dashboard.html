@@ -479,6 +479,33 @@
     font-size: 0.92rem;
   }
 
+  .log-item-revert-btn {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #b3261e;
+    background: white;
+    border: 1px solid #b3261e;
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    margin-top: 0.6rem;
+    cursor: pointer;
+  }
+
+  .log-item-revert-btn:hover {
+    background: #b3261e;
+    color: white;
+  }
+
+  .log-item-reverted-badge {
+    display: inline-block;
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    font-style: italic;
+  }
+
   #activeLeagueLabel {
     display: block;
     margin-top: 0.5rem;
@@ -2469,7 +2496,7 @@
 
       <div class="field">
         <label for="newPlayerName">Player Name</label>
-        <input type="text" id="newPlayerName" placeholder="e.g. Sammal">
+        <input type="text" id="newPlayerName" placeholder="e.g. Mani">
         <p class="field-error" id="newPlayerNameError" style="display: none;"></p>
       </div>
 
@@ -2576,6 +2603,17 @@
     <div class="modal-actions">
       <button class="btn-remove-player" id="confirmResetYes">Yes, Reset</button>
       <button class="btn-clear-rally" id="confirmResetNo">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="revertConfirmModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Revert Change</h2>
+    <p class="section-note" style="margin-bottom: 1.5rem;" id="revertConfirmMessage">Do you really want to revert this change?</p>
+    <div class="modal-actions">
+      <button class="btn-remove-player" id="confirmRevertYes">Yes, Revert</button>
+      <button class="btn-clear-rally" id="confirmRevertNo">Cancel</button>
     </div>
   </div>
 </div>
@@ -3141,14 +3179,20 @@
   // pruneLogsIfNeeded(), run every time the "logs" onValue fires.
   const LOG_CAP = 500;
 
-  function logAdminAction(description) {
+  // "undo" carries whatever the revert dispatcher (revertLogEntry, near the
+  // Logs rendering code) needs to reverse this specific action — e.g. the
+  // previous value of a field that just got overwritten. Omitted for
+  // actions that aren't meant to be revertible (a revert's own log entry).
+  function logAdminAction(description, undo) {
     const adminName = sessionStorage.getItem("adminName") || "Admin";
     const id = "log" + Date.now();
-    set(ref(db, "logs/" + id), {
+    const entry = {
       timestamp: Date.now(),
       adminName,
       description
-    });
+    };
+    if (undo) entry.undo = undo;
+    set(ref(db, "logs/" + id), entry);
   }
 
   function pruneLogsIfNeeded() {
@@ -3158,6 +3202,181 @@
         remove(ref(db, "logs/" + key));
       });
     }
+  }
+
+  function isSuperUser() {
+    return sessionStorage.getItem("isSuperUser") === "true";
+  }
+
+  function restoreActivePointer(previousActiveId) {
+    if (previousActiveId) {
+      set(ref(db, "leagues/_active"), previousActiveId);
+    } else {
+      remove(ref(db, "leagues/_active"));
+    }
+  }
+
+  // Applies the reversal described by a log entry's "undo" payload. Each
+  // action's undo only carries what that specific action changed, so this
+  // is a best-effort restore of THAT value — not a full undo stack. If
+  // other edits happened to the same data since, this simply overwrites
+  // with the captured previous value, same as any single-entry revert.
+  function applyUndo(undo) {
+    switch (undo.type) {
+      case "removeAddedPlayer": {
+        const league = allLeagues[undo.leagueId];
+        if (!league) return;
+        const players = (league.addedPlayers || []).filter((p) => p.name !== undo.name);
+        set(ref(db, "leagues/" + undo.leagueId + "/addedPlayers"), players);
+        break;
+      }
+      case "restorePlayer": {
+        (undo.leagueIds || []).forEach((leagueId) => {
+          const league = allLeagues[leagueId];
+          if (!league) return;
+          const removed = (league.removedPlayers || []).filter((n) => n !== undo.name);
+          set(ref(db, "leagues/" + leagueId + "/removedPlayers"), removed);
+        });
+        break;
+      }
+      case "restoreOverrides": {
+        const league = allLeagues[undo.leagueId];
+        if (!league) return;
+        const overrides = Object.assign({}, league.teamOverrides || {});
+        (undo.changes || []).forEach((c) => {
+          if (c.previousTeam == null) delete overrides[c.name];
+          else overrides[c.name] = c.previousTeam;
+        });
+        set(ref(db, "leagues/" + undo.leagueId + "/teamOverrides"), overrides);
+        break;
+      }
+      case "undoAssignPlayers": {
+        const league = allLeagues[undo.leagueId];
+        if (!league) return;
+        const overrides = Object.assign({}, league.teamOverrides || {});
+        (undo.overrideChanges || []).forEach((c) => {
+          if (c.previousTeam == null) delete overrides[c.name];
+          else overrides[c.name] = c.previousTeam;
+        });
+        set(ref(db, "leagues/" + undo.leagueId + "/teamOverrides"), overrides);
+        const addedNames = new Set(undo.addedNames || []);
+        if (addedNames.size) {
+          const addedPlayers = (league.addedPlayers || []).filter((p) => !addedNames.has(p.name));
+          set(ref(db, "leagues/" + undo.leagueId + "/addedPlayers"), addedPlayers);
+        }
+        break;
+      }
+      case "restoreCaptain": {
+        const league = allLeagues[undo.leagueId];
+        if (!league) return;
+        const captains = Object.assign({}, league.teamCaptains || {});
+        if (undo.previousCaptain == null) delete captains[undo.team];
+        else captains[undo.team] = undo.previousCaptain;
+        set(ref(db, "leagues/" + undo.leagueId + "/teamCaptains"), captains);
+        break;
+      }
+      case "restoreRallyState": {
+        set(ref(db, "leagues/" + undo.leagueId + "/rallyStates/" + undo.matchId), undo.previousRallyState);
+        break;
+      }
+      case "deleteLeague": {
+        // Undoes a league CREATE. Only touches the active pointer if the
+        // created league is still the one currently active — if a later
+        // action already moved on to a different league, leave that alone.
+        remove(ref(db, "leagues/" + undo.leagueId));
+        if (activeLeagueId === undo.leagueId) {
+          restoreActivePointer(undo.previousActiveId);
+        }
+        break;
+      }
+      case "undoCreateTeam": {
+        remove(ref(db, "teams/" + undo.teamId));
+        if (undo.leagueId && undo.overrideChanges && undo.overrideChanges.length) {
+          const league = allLeagues[undo.leagueId];
+          const overrides = Object.assign({}, (league && league.teamOverrides) || {});
+          undo.overrideChanges.forEach((c) => {
+            if (c.previousTeam == null) delete overrides[c.name];
+            else overrides[c.name] = c.previousTeam;
+          });
+          set(ref(db, "leagues/" + undo.leagueId + "/teamOverrides"), overrides);
+        }
+        break;
+      }
+      case "unremoveTeam": {
+        remove(ref(db, "removedTeams/" + undo.teamSlug));
+        break;
+      }
+      case "restoreTeamName": {
+        const league = allLeagues[undo.leagueId];
+        if (!league) return;
+        const teamNames = Object.assign({}, league.teamNames || {});
+        if (undo.previousName == null) delete teamNames[undo.team];
+        else teamNames[undo.team] = undo.previousName;
+        set(ref(db, "leagues/" + undo.leagueId + "/teamNames"), teamNames);
+        break;
+      }
+      case "removeMatch": {
+        remove(ref(db, "leagues/" + undo.leagueId + "/schedule/" + undo.matchId));
+        break;
+      }
+      case "restoreMatchDateTime": {
+        const league = allLeagues[undo.leagueId];
+        const existing = (league && league.schedule && league.schedule[undo.matchId]) || {};
+        set(ref(db, "leagues/" + undo.leagueId + "/schedule/" + undo.matchId), {
+          teamA: existing.teamA,
+          teamB: existing.teamB,
+          date: undo.previousDate,
+          time: undo.previousTime,
+          stage: existing.stage
+        });
+        break;
+      }
+      case "restoreMatch": {
+        if (undo.match) {
+          set(ref(db, "leagues/" + undo.leagueId + "/schedule/" + undo.matchId), undo.match);
+        }
+        break;
+      }
+      case "restoreLeague": {
+        // Undoes a league DELETE. If nothing else is active right now,
+        // make the restored league active again; otherwise leave the
+        // current one alone.
+        if (undo.snapshot) {
+          set(ref(db, "leagues/" + undo.leagueId), undo.snapshot);
+        }
+        if (!activeLeagueId) {
+          set(ref(db, "leagues/_active"), undo.leagueId);
+        }
+        break;
+      }
+      case "restoreLeagueTeams": {
+        set(ref(db, "leagues/" + undo.leagueId + "/teams"), undo.previousTeams);
+        break;
+      }
+      case "restoreLeagueStatuses": {
+        const changeMap = {};
+        (undo.changes || []).forEach((c) => {
+          changeMap[c.leagueId] = c.previousStatus;
+          set(ref(db, "leagues/" + c.leagueId + "/status"), c.previousStatus);
+        });
+        const statusOf = (id) => (Object.prototype.hasOwnProperty.call(changeMap, id) ? changeMap[id] : getLeagueStatus(id));
+        if (!activeLeagueId || statusOf(activeLeagueId) !== "active") {
+          const fallback = Object.keys(allLeagues).find((id) => statusOf(id) === "active");
+          restoreActivePointer(fallback || null);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function revertLogEntry(id) {
+    const entry = allLogs[id];
+    if (!entry || !entry.undo || entry.reverted) return;
+    applyUndo(entry.undo);
+    set(ref(db, "logs/" + id + "/reverted"), true);
+    logAdminAction("Reverted: " + entry.description);
   }
 
   function slugify(name) {
@@ -3483,6 +3702,7 @@
   document.getElementById("switchRoleLink").addEventListener("click", () => {
     sessionStorage.removeItem("role");
     sessionStorage.removeItem("adminName");
+    sessionStorage.removeItem("isSuperUser");
   });
 
   // .bottom-nav-link (the 4 primary mobile tabs) shares the exact same
@@ -3922,7 +4142,8 @@
 
     const players = getAddedPlayers().concat([{ name, team }]);
     writeToLeague("addedPlayers", players);
-    logAdminAction("Added player '" + name + "' to " + displayName(team));
+    logAdminAction("Added player '" + name + "' to " + displayName(team),
+      { type: "removeAddedPlayer", leagueId: activeLeagueId, name });
 
     renderRosters();
     closeAddPlayerModal();
@@ -3957,15 +4178,18 @@
     // in several leagues at once, so "remove completely" means clearing
     // them out of every league's removedPlayers, not just the one
     // currently being managed.
+    const modifiedLeagueIds = [];
     Object.keys(allLeagues).forEach((id) => {
       const league = allLeagues[id];
       const removed = (league.removedPlayers || []).slice();
       if (!removed.includes(pendingRemovalName)) {
         removed.push(pendingRemovalName);
         set(ref(db, "leagues/" + id + "/removedPlayers"), removed);
+        modifiedLeagueIds.push(id);
       }
     });
-    logAdminAction("Removed player '" + pendingRemovalName + "'");
+    logAdminAction("Removed player '" + pendingRemovalName + "'",
+      { type: "restorePlayer", name: pendingRemovalName, leagueIds: modifiedLeagueIds });
 
     renderRosters();
     closeRemoveConfirmModal();
@@ -4053,12 +4277,18 @@
   });
 
   document.getElementById("confirmUnassignYes").addEventListener("click", () => {
-    const overrides = Object.assign({}, getTeamOverrides());
+    const previousOverrides = getTeamOverrides();
+    const changes = pendingUnassignNames.map((name) => ({
+      name,
+      previousTeam: Object.prototype.hasOwnProperty.call(previousOverrides, name) ? previousOverrides[name] : null
+    }));
+    const overrides = Object.assign({}, previousOverrides);
     pendingUnassignNames.forEach((name) => {
       overrides[name] = "Not Yet Decided";
     });
     writeToLeague("teamOverrides", overrides);
-    logAdminAction("Unassigned " + pendingUnassignNames.join(", "));
+    logAdminAction("Unassigned " + pendingUnassignNames.join(", "),
+      { type: "restoreOverrides", leagueId: activeLeagueId, changes });
 
     renderRosters();
     closeUnassignConfirmModal();
@@ -4112,18 +4342,27 @@
     // league's addedPlayers directly in that case; otherwise override as
     // usual.
     const existingNames = new Set(getEffectivePlayers().map((p) => p.name));
-    const overrides = Object.assign({}, getTeamOverrides());
+    const previousOverrides = getTeamOverrides();
+    const overrides = Object.assign({}, previousOverrides);
     const addedPlayers = getAddedPlayers().slice();
+    const overrideChanges = [];
+    const addedNames = [];
     selected.forEach((name) => {
       if (existingNames.has(name)) {
+        overrideChanges.push({
+          name,
+          previousTeam: Object.prototype.hasOwnProperty.call(previousOverrides, name) ? previousOverrides[name] : null
+        });
         overrides[name] = team;
       } else {
+        addedNames.push(name);
         addedPlayers.push({ name, team });
       }
     });
     writeToLeague("teamOverrides", overrides);
     writeToLeague("addedPlayers", addedPlayers);
-    logAdminAction("Assigned " + selected.join(", ") + " to " + displayName(team));
+    logAdminAction("Assigned " + selected.join(", ") + " to " + displayName(team),
+      { type: "undoAssignPlayers", leagueId: activeLeagueId, overrideChanges, addedNames });
 
     renderRosters();
     closeAssignPlayersModal();
@@ -4181,10 +4420,13 @@
       return;
     }
 
-    const overrides = Object.assign({}, getTeamOverrides());
+    const previousOverrides = getTeamOverrides();
+    const previousTeam = Object.prototype.hasOwnProperty.call(previousOverrides, name) ? previousOverrides[name] : null;
+    const overrides = Object.assign({}, previousOverrides);
     overrides[name] = newTeam;
     writeToLeague("teamOverrides", overrides);
-    logAdminAction("Traded '" + name + "' to " + displayName(newTeam));
+    logAdminAction("Traded '" + name + "' to " + displayName(newTeam),
+      { type: "restoreOverrides", leagueId: activeLeagueId, changes: [{ name, previousTeam }] });
 
     renderRosters();
     closeTradePlayerModal();
@@ -4246,10 +4488,13 @@
       return;
     }
 
-    const captains = Object.assign({}, getTeamCaptainOverrides());
+    const previousCaptains = getTeamCaptainOverrides();
+    const previousCaptain = Object.prototype.hasOwnProperty.call(previousCaptains, team) ? previousCaptains[team] : null;
+    const captains = Object.assign({}, previousCaptains);
     captains[team] = newCaptain;
     writeToLeague("teamCaptains", captains);
-    logAdminAction("Set '" + newCaptain + "' as captain of " + displayName(team));
+    logAdminAction("Set '" + newCaptain + "' as captain of " + displayName(team),
+      { type: "restoreCaptain", leagueId: activeLeagueId, team, previousCaptain });
 
     renderRosters();
     closeChangeCaptainModal();
@@ -5089,13 +5334,47 @@
   document.getElementById("confirmResetYes").addEventListener("click", () => {
     const resetState = defaultRallyState();
     const resetMatch = (remoteState.schedule || {})[selectedMatchId];
+    // Full previous sets+log so a super user can restore it exactly — this
+    // is the one entry where "undo" is genuinely as big as the match data
+    // itself, per the "include everything" scope for Revert.
+    const previousRallyState = (remoteState.rallyStates && remoteState.rallyStates[selectedMatchId]) ||
+      { sets: defaultRallyState().sets, log: [] };
     persistRallyState(selectedMatchId, resetState);
     if (selectedMatchId) delete milestoneTracker[selectedMatchId];
     if (resetMatch) {
-      logAdminAction("Reset match: " + displayName(resetMatch.teamA) + " vs " + displayName(resetMatch.teamB));
+      logAdminAction("Reset match: " + displayName(resetMatch.teamA) + " vs " + displayName(resetMatch.teamB),
+        { type: "restoreRallyState", leagueId: activeLeagueId, matchId: selectedMatchId, previousRallyState });
     }
     renderAll();
     resetMatchConfirmModal.classList.remove("open");
+  });
+
+  const revertConfirmModal = document.getElementById("revertConfirmModal");
+  const revertConfirmMessage = document.getElementById("revertConfirmMessage");
+  let pendingRevertLogId = "";
+
+  function closeRevertConfirmModal() {
+    revertConfirmModal.classList.remove("open");
+    pendingRevertLogId = "";
+  }
+
+  function openRevertConfirm(id) {
+    const entry = allLogs[id];
+    if (!entry) return;
+    pendingRevertLogId = id;
+    revertConfirmMessage.textContent = 'Revert "' + entry.description + '"? This writes directly back to the previous value.';
+    revertConfirmModal.classList.add("open");
+  }
+
+  revertConfirmModal.addEventListener("click", (event) => {
+    if (event.target === revertConfirmModal) closeRevertConfirmModal();
+  });
+
+  document.getElementById("confirmRevertNo").addEventListener("click", closeRevertConfirmModal);
+
+  document.getElementById("confirmRevertYes").addEventListener("click", () => {
+    if (pendingRevertLogId) revertLogEntry(pendingRevertLogId);
+    closeRevertConfirmModal();
   });
 
   const shareUpdateBtn = document.getElementById("shareUpdateBtn");
@@ -5214,6 +5493,8 @@
       return;
     }
 
+    const showRevert = isSuperUser();
+
     ids
       .sort((a, b) => (allLogs[b].timestamp || 0) - (allLogs[a].timestamp || 0))
       .forEach((id) => {
@@ -5223,6 +5504,25 @@
         item.innerHTML =
           '<div class="log-item-meta">' + escapeHtml(formatLogTimestamp(entry.timestamp)) + " &middot; " + escapeHtml(entry.adminName || "Admin") + "</div>" +
           '<div class="log-item-description">' + escapeHtml(entry.description || "") + "</div>";
+
+        // Only the super user can see/use Revert, and only for entries that
+        // actually carry undo data and haven't already been reverted.
+        if (showRevert && entry.undo) {
+          if (entry.reverted) {
+            const badge = document.createElement("span");
+            badge.className = "log-item-reverted-badge";
+            badge.textContent = "Reverted";
+            item.appendChild(badge);
+          } else {
+            const revertBtn = document.createElement("button");
+            revertBtn.type = "button";
+            revertBtn.className = "log-item-revert-btn";
+            revertBtn.textContent = "Revert";
+            revertBtn.addEventListener("click", () => openRevertConfirm(id));
+            item.appendChild(revertBtn);
+          }
+        }
+
         container.appendChild(item);
       });
   }
@@ -5775,6 +6075,7 @@
     });
 
     const id = slugify(name) + "-" + Date.now();
+    const previousActiveId = activeLeagueId;
     set(ref(db, "leagues/" + id), {
       name,
       createdAt: Date.now(),
@@ -5782,7 +6083,8 @@
       teams
     });
     set(ref(db, "leagues/_active"), id);
-    logAdminAction("Created league '" + name + "'");
+    logAdminAction("Created league '" + name + "'",
+      { type: "deleteLeague", leagueId: id, previousActiveId });
 
     closeCreateLeagueModal();
   });
@@ -5856,14 +6158,21 @@
     });
 
     const selectedPlayers = Array.from(createTeamPlayersList.querySelectorAll(".player-checkbox:checked")).map((cb) => cb.value);
+    let overrideChanges = [];
     if (selectedPlayers.length) {
-      const overrides = Object.assign({}, getTeamOverrides());
+      const previousOverrides = getTeamOverrides();
+      overrideChanges = selectedPlayers.map((playerName) => ({
+        name: playerName,
+        previousTeam: Object.prototype.hasOwnProperty.call(previousOverrides, playerName) ? previousOverrides[playerName] : null
+      }));
+      const overrides = Object.assign({}, previousOverrides);
       selectedPlayers.forEach((playerName) => {
         overrides[playerName] = name;
       });
       writeToLeague("teamOverrides", overrides);
     }
-    logAdminAction("Created team '" + name + "'");
+    logAdminAction("Created team '" + name + "'",
+      { type: "undoCreateTeam", leagueId: activeLeagueId, teamId: id, overrideChanges });
 
     closeCreateTeamModal();
   });
@@ -5895,8 +6204,10 @@
     if (!team) return;
 
     const removedTeamLabel = displayName(team);
-    set(ref(db, "removedTeams/" + slugify(team)), true);
-    logAdminAction("Removed team '" + removedTeamLabel + "'");
+    const removedTeamSlug = slugify(team);
+    set(ref(db, "removedTeams/" + removedTeamSlug), true);
+    logAdminAction("Removed team '" + removedTeamLabel + "'",
+      { type: "unremoveTeam", teamSlug: removedTeamSlug });
 
     closeRemoveTeamModal();
   });
@@ -5931,10 +6242,13 @@
     if (!team || !newName) return;
 
     const oldName = displayName(team);
-    const teamNames = Object.assign({}, remoteState.teamNames);
+    const previousTeamNames = remoteState.teamNames || {};
+    const previousName = Object.prototype.hasOwnProperty.call(previousTeamNames, team) ? previousTeamNames[team] : null;
+    const teamNames = Object.assign({}, previousTeamNames);
     teamNames[team] = newName;
     writeToLeague("teamNames", teamNames);
-    logAdminAction("Renamed team '" + oldName + "' to '" + newName + "'");
+    logAdminAction("Renamed team '" + oldName + "' to '" + newName + "'",
+      { type: "restoreTeamName", leagueId: activeLeagueId, team, previousName });
 
     closeChangeTeamNameModal();
   });
@@ -6132,7 +6446,8 @@
     scheduleEditingMatchId = matchId;
     const stage = getScheduleMatchType();
     set(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + matchId), { teamA: teamA, teamB: teamB, date: date, time: time, stage: stage });
-    logAdminAction("Scheduled match: " + displayName(teamA) + " vs " + displayName(teamB));
+    logAdminAction("Scheduled match: " + displayName(teamA) + " vs " + displayName(teamB),
+      { type: "removeMatch", leagueId: scheduleLeagueId, matchId });
   });
 
   document.getElementById("scheduleAddAnotherBtn").addEventListener("click", resetScheduleForm);
@@ -6174,7 +6489,8 @@
       date: editScheduleDateInput.value,
       time: editScheduleTimeInput.value
     });
-    logAdminAction("Updated match date/time: " + displayName(existing.teamA) + " vs " + displayName(existing.teamB));
+    logAdminAction("Updated match date/time: " + displayName(existing.teamA) + " vs " + displayName(existing.teamB),
+      { type: "restoreMatchDateTime", leagueId: activeLeagueId, matchId: pendingScheduleEditId, previousDate: existing.date, previousTime: existing.time });
     closeEditScheduleMatchModal();
   });
 
@@ -6188,7 +6504,8 @@
     if (!pendingScheduleRemoveId || !activeLeagueId) return;
     const removedMatch = (remoteState.schedule || {})[pendingScheduleRemoveId] || {};
     remove(ref(db, "leagues/" + activeLeagueId + "/schedule/" + pendingScheduleRemoveId));
-    logAdminAction("Removed match: " + displayName(removedMatch.teamA) + " vs " + displayName(removedMatch.teamB));
+    logAdminAction("Removed match: " + displayName(removedMatch.teamA) + " vs " + displayName(removedMatch.teamB),
+      { type: "restoreMatch", leagueId: activeLeagueId, matchId: pendingScheduleRemoveId, match: removedMatch });
     closeRemoveScheduleMatchConfirmModal();
   });
 
@@ -6203,8 +6520,14 @@
     if (!idToDelete) return;
 
     const deletedLeagueName = (allLeagues[idToDelete] && allLeagues[idToDelete].name) || idToDelete;
+    // Full league snapshot (teams, schedule, rosters, rally states) so a
+    // super user can restore it exactly — the one other entry, besides a
+    // match reset, where "undo" is genuinely as big as the data itself.
+    const deletedLeagueSnapshot = allLeagues[idToDelete] || null;
+    const previousActiveId = activeLeagueId;
     remove(ref(db, "leagues/" + idToDelete));
-    logAdminAction("Deleted league '" + deletedLeagueName + "'");
+    logAdminAction("Deleted league '" + deletedLeagueName + "'",
+      { type: "restoreLeague", leagueId: idToDelete, snapshot: deletedLeagueSnapshot, previousActiveId });
 
     if (idToDelete === activeLeagueId) {
       const remaining = Object.keys(allLeagues).filter((id) => id !== idToDelete);
@@ -6317,8 +6640,10 @@
       teams[el.dataset.team] = true;
     });
 
+    const previousTeams = (allLeagues[leagueId] && allLeagues[leagueId].teams) || {};
     set(ref(db, "leagues/" + leagueId + "/teams"), teams);
-    logAdminAction("Edited league '" + ((allLeagues[leagueId] && allLeagues[leagueId].name) || leagueId) + "'");
+    logAdminAction("Edited league '" + ((allLeagues[leagueId] && allLeagues[leagueId].name) || leagueId) + "'",
+      { type: "restoreLeagueTeams", leagueId, previousTeams });
 
     closeEditLeagueModal();
   });
@@ -6447,18 +6772,23 @@
   document.getElementById("saveLeagueStatusBtn").addEventListener("click", () => {
     const activeIds = [];
     const statusChanges = [];
+    const undoChanges = [];
+    const previousActiveId = activeLeagueId;
     leagueStatusList.querySelectorAll(".league-status-radio-active").forEach((el) => {
       const id = el.dataset.leagueId;
       const newStatus = el.checked ? "active" : "archived";
-      if (newStatus !== getLeagueStatus(id)) {
+      const previousStatus = getLeagueStatus(id);
+      if (newStatus !== previousStatus) {
         const label = (allLeagues[id] && allLeagues[id].name) || id;
         statusChanges.push(label + " → " + (newStatus === "active" ? "Active" : "Archived"));
+        undoChanges.push({ leagueId: id, previousStatus });
       }
       set(ref(db, "leagues/" + id + "/status"), newStatus);
       if (newStatus === "active") activeIds.push(id);
     });
     if (statusChanges.length) {
-      logAdminAction("Updated league status: " + statusChanges.join(", "));
+      logAdminAction("Updated league status: " + statusChanges.join(", "),
+        { type: "restoreLeagueStatuses", changes: undoChanges, previousActiveId });
     }
 
     // The operational pointer (Score Updates, Schedule, Teams, etc.) still
@@ -6497,7 +6827,8 @@
     deleteLeagueConfirmModal: closeDeleteLeagueConfirmModal,
     activateArchiveLeagueModal: closeActivateArchiveLeagueModal,
     tradePlayerModal: closeTradePlayerModal,
-    changeCaptainModal: closeChangeCaptainModal
+    changeCaptainModal: closeChangeCaptainModal,
+    revertConfirmModal: closeRevertConfirmModal
   };
 
   document.querySelectorAll(".modal-overlay").forEach((overlay) => {
