@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8756"],
       "port": 8756
+    },
+    {
+      "name": "mytaskplanner",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8791", "--directory", "/Users/mkanna191@cable.comcast.com/Documents/MyTaskPlanner"],
+      "port": 8791
     }
   ]
 }
