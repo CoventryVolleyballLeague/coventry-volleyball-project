@@ -458,6 +458,27 @@
     margin-bottom: 0;
   }
 
+  .log-item {
+    background: white;
+    border: 1px solid #e5e0d5;
+    border-left: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .log-item-meta {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .log-item-description {
+    color: var(--text);
+    font-size: 0.92rem;
+  }
+
   #activeLeagueLabel {
     display: block;
     margin-top: 0.5rem;
@@ -2155,10 +2176,22 @@
         <button class="settings-action-btn" id="createScheduleBtn">Create a Schedule for a League</button>
       </div>
 
+      <h2 class="section-heading">Activity</h2>
+      <div class="settings-actions">
+        <button class="settings-action-btn" id="logsBtn">Logs</button>
+      </div>
+
       <h2 class="section-heading">Help</h2>
       <div class="settings-actions">
         <button class="settings-action-btn" id="adminGuideBtn">Admin Guide</button>
       </div>
+    </section>
+
+    <section class="page-section" id="logs">
+      <button type="button" class="guide-back-link" id="logsBackBtn">&larr; Back to Settings</button>
+      <h1>Logs</h1>
+      <p class="section-note">A record of every league, team, player, and schedule change made by an admin, most recent first. Keeps the most recent 500 entries.</p>
+      <div id="logsList"></div>
     </section>
 
     <section class="page-section" id="admin-guide">
@@ -2964,6 +2997,7 @@
   let allLeagues = {};
   let allTeams = {};
   let removedTeams = {};
+  let allLogs = {};
   let activeLeagueId = null;
   let remoteState = defaultRemoteState();
   // viewLeagueId is a per-browser (sessionStorage-only, never written to
@@ -3099,6 +3133,31 @@
   function writeToLeague(path, value) {
     if (!activeLeagueId) return;
     set(ref(db, "leagues/" + activeLeagueId + "/" + path), value);
+  }
+
+  // Structural admin changes only (league/team/player/schedule edits, match
+  // resets) — not individual rally points, to keep this cheap on storage.
+  // Capped at LOG_CAP entries so it can never grow unbounded; see
+  // pruneLogsIfNeeded(), run every time the "logs" onValue fires.
+  const LOG_CAP = 500;
+
+  function logAdminAction(description) {
+    const adminName = sessionStorage.getItem("adminName") || "Admin";
+    const id = "log" + Date.now();
+    set(ref(db, "logs/" + id), {
+      timestamp: Date.now(),
+      adminName,
+      description
+    });
+  }
+
+  function pruneLogsIfNeeded() {
+    const keys = Object.keys(allLogs).sort();
+    if (keys.length > LOG_CAP) {
+      keys.slice(0, keys.length - LOG_CAP).forEach((key) => {
+        remove(ref(db, "logs/" + key));
+      });
+    }
   }
 
   function slugify(name) {
@@ -3423,6 +3482,7 @@
 
   document.getElementById("switchRoleLink").addEventListener("click", () => {
     sessionStorage.removeItem("role");
+    sessionStorage.removeItem("adminName");
   });
 
   // .bottom-nav-link (the 4 primary mobile tabs) shares the exact same
@@ -3482,7 +3542,7 @@
     });
   });
 
-  const adminOnlySections = ["settings", "score-updates", "history", "admin-guide"];
+  const adminOnlySections = ["settings", "score-updates", "history", "admin-guide", "logs"];
   const initialSection = location.hash.replace("#", "") || "leagues";
   if (document.getElementById(initialSection) && (!adminOnlySections.includes(initialSection) || role === "admin")) {
     showSection(initialSection);
@@ -3500,6 +3560,23 @@
   const adminGuideBackBtn = document.getElementById("adminGuideBackBtn");
   if (adminGuideBackBtn) {
     adminGuideBackBtn.addEventListener("click", () => {
+      showSection("settings");
+      history.replaceState(null, "", "#settings");
+    });
+  }
+
+  // Same pattern as the Admin Guide — a sub-page of Settings, not a
+  // top-level nav item.
+  const logsBtn = document.getElementById("logsBtn");
+  if (logsBtn) {
+    logsBtn.addEventListener("click", () => {
+      showSection("logs");
+      history.replaceState(null, "", "#logs");
+    });
+  }
+  const logsBackBtn = document.getElementById("logsBackBtn");
+  if (logsBackBtn) {
+    logsBackBtn.addEventListener("click", () => {
       showSection("settings");
       history.replaceState(null, "", "#settings");
     });
@@ -3845,6 +3922,7 @@
 
     const players = getAddedPlayers().concat([{ name, team }]);
     writeToLeague("addedPlayers", players);
+    logAdminAction("Added player '" + name + "' to " + displayName(team));
 
     renderRosters();
     closeAddPlayerModal();
@@ -3887,6 +3965,7 @@
         set(ref(db, "leagues/" + id + "/removedPlayers"), removed);
       }
     });
+    logAdminAction("Removed player '" + pendingRemovalName + "'");
 
     renderRosters();
     closeRemoveConfirmModal();
@@ -3979,6 +4058,7 @@
       overrides[name] = "Not Yet Decided";
     });
     writeToLeague("teamOverrides", overrides);
+    logAdminAction("Unassigned " + pendingUnassignNames.join(", "));
 
     renderRosters();
     closeUnassignConfirmModal();
@@ -4043,6 +4123,7 @@
     });
     writeToLeague("teamOverrides", overrides);
     writeToLeague("addedPlayers", addedPlayers);
+    logAdminAction("Assigned " + selected.join(", ") + " to " + displayName(team));
 
     renderRosters();
     closeAssignPlayersModal();
@@ -4103,6 +4184,7 @@
     const overrides = Object.assign({}, getTeamOverrides());
     overrides[name] = newTeam;
     writeToLeague("teamOverrides", overrides);
+    logAdminAction("Traded '" + name + "' to " + displayName(newTeam));
 
     renderRosters();
     closeTradePlayerModal();
@@ -4167,6 +4249,7 @@
     const captains = Object.assign({}, getTeamCaptainOverrides());
     captains[team] = newCaptain;
     writeToLeague("teamCaptains", captains);
+    logAdminAction("Set '" + newCaptain + "' as captain of " + displayName(team));
 
     renderRosters();
     closeChangeCaptainModal();
@@ -5005,8 +5088,12 @@
 
   document.getElementById("confirmResetYes").addEventListener("click", () => {
     const resetState = defaultRallyState();
+    const resetMatch = (remoteState.schedule || {})[selectedMatchId];
     persistRallyState(selectedMatchId, resetState);
     if (selectedMatchId) delete milestoneTracker[selectedMatchId];
+    if (resetMatch) {
+      logAdminAction("Reset match: " + displayName(resetMatch.teamA) + " vs " + displayName(resetMatch.teamB));
+    }
     renderAll();
     resetMatchConfirmModal.classList.remove("open");
   });
@@ -5094,19 +5181,50 @@
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   }
 
-  function renderStorageEstimate(leaguesData) {
+  function renderStorageEstimate() {
     const valueEl = document.getElementById("storageRemainingValue");
     const subEl = document.getElementById("storageUsedSub");
     const fillEl = document.getElementById("storageProgressFill");
     if (!valueEl) return;
 
-    const usedBytes = new TextEncoder().encode(JSON.stringify(leaguesData || {})).length;
+    // allLeagues/allLogs are always up to date by the time either onValue
+    // callback that triggers this has run, so no parameters needed.
+    const usedBytes = new TextEncoder().encode(JSON.stringify(allLeagues || {})).length +
+      new TextEncoder().encode(JSON.stringify(allLogs || {})).length;
     const remainingBytes = Math.max(FREE_TIER_BYTES - usedBytes, 0);
     const usedPercent = (usedBytes / FREE_TIER_BYTES) * 100;
 
     valueEl.textContent = formatBytes(remainingBytes) + " free";
     subEl.textContent = formatBytes(usedBytes) + " used of " + formatBytes(FREE_TIER_BYTES) + " (" + usedPercent.toFixed(4) + "% used)";
     fillEl.style.width = Math.min(Math.max(usedPercent, 0.5), 100) + "%";
+  }
+
+  function formatLogTimestamp(ts) {
+    return new Date(ts).toLocaleString();
+  }
+
+  function renderLogsList() {
+    const container = document.getElementById("logsList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const ids = Object.keys(allLogs);
+    if (!ids.length) {
+      container.innerHTML = '<p class="section-note">No admin activity recorded yet.</p>';
+      return;
+    }
+
+    ids
+      .sort((a, b) => (allLogs[b].timestamp || 0) - (allLogs[a].timestamp || 0))
+      .forEach((id) => {
+        const entry = allLogs[id];
+        const item = document.createElement("div");
+        item.className = "log-item";
+        item.innerHTML =
+          '<div class="log-item-meta">' + escapeHtml(formatLogTimestamp(entry.timestamp)) + " &middot; " + escapeHtml(entry.adminName || "Admin") + "</div>" +
+          '<div class="log-item-description">' + escapeHtml(entry.description || "") + "</div>";
+        container.appendChild(item);
+      });
   }
 
   function displayNameFor(leagueData, canonicalTeam) {
@@ -5664,6 +5782,7 @@
       teams
     });
     set(ref(db, "leagues/_active"), id);
+    logAdminAction("Created league '" + name + "'");
 
     closeCreateLeagueModal();
   });
@@ -5744,6 +5863,7 @@
       });
       writeToLeague("teamOverrides", overrides);
     }
+    logAdminAction("Created team '" + name + "'");
 
     closeCreateTeamModal();
   });
@@ -5774,7 +5894,9 @@
     const team = removeTeamSelect.value;
     if (!team) return;
 
+    const removedTeamLabel = displayName(team);
     set(ref(db, "removedTeams/" + slugify(team)), true);
+    logAdminAction("Removed team '" + removedTeamLabel + "'");
 
     closeRemoveTeamModal();
   });
@@ -5808,9 +5930,11 @@
     const newName = renameTeamInput.value.trim();
     if (!team || !newName) return;
 
+    const oldName = displayName(team);
     const teamNames = Object.assign({}, remoteState.teamNames);
     teamNames[team] = newName;
     writeToLeague("teamNames", teamNames);
+    logAdminAction("Renamed team '" + oldName + "' to '" + newName + "'");
 
     closeChangeTeamNameModal();
   });
@@ -6008,6 +6132,7 @@
     scheduleEditingMatchId = matchId;
     const stage = getScheduleMatchType();
     set(ref(db, "leagues/" + scheduleLeagueId + "/schedule/" + matchId), { teamA: teamA, teamB: teamB, date: date, time: time, stage: stage });
+    logAdminAction("Scheduled match: " + displayName(teamA) + " vs " + displayName(teamB));
   });
 
   document.getElementById("scheduleAddAnotherBtn").addEventListener("click", resetScheduleForm);
@@ -6049,6 +6174,7 @@
       date: editScheduleDateInput.value,
       time: editScheduleTimeInput.value
     });
+    logAdminAction("Updated match date/time: " + displayName(existing.teamA) + " vs " + displayName(existing.teamB));
     closeEditScheduleMatchModal();
   });
 
@@ -6060,7 +6186,9 @@
 
   document.getElementById("confirmRemoveScheduleYes").addEventListener("click", () => {
     if (!pendingScheduleRemoveId || !activeLeagueId) return;
+    const removedMatch = (remoteState.schedule || {})[pendingScheduleRemoveId] || {};
     remove(ref(db, "leagues/" + activeLeagueId + "/schedule/" + pendingScheduleRemoveId));
+    logAdminAction("Removed match: " + displayName(removedMatch.teamA) + " vs " + displayName(removedMatch.teamB));
     closeRemoveScheduleMatchConfirmModal();
   });
 
@@ -6074,7 +6202,9 @@
     const idToDelete = pendingDeleteLeagueId;
     if (!idToDelete) return;
 
+    const deletedLeagueName = (allLeagues[idToDelete] && allLeagues[idToDelete].name) || idToDelete;
     remove(ref(db, "leagues/" + idToDelete));
+    logAdminAction("Deleted league '" + deletedLeagueName + "'");
 
     if (idToDelete === activeLeagueId) {
       const remaining = Object.keys(allLeagues).filter((id) => id !== idToDelete);
@@ -6188,6 +6318,7 @@
     });
 
     set(ref(db, "leagues/" + leagueId + "/teams"), teams);
+    logAdminAction("Edited league '" + ((allLeagues[leagueId] && allLeagues[leagueId].name) || leagueId) + "'");
 
     closeEditLeagueModal();
   });
@@ -6315,12 +6446,20 @@
 
   document.getElementById("saveLeagueStatusBtn").addEventListener("click", () => {
     const activeIds = [];
+    const statusChanges = [];
     leagueStatusList.querySelectorAll(".league-status-radio-active").forEach((el) => {
       const id = el.dataset.leagueId;
       const newStatus = el.checked ? "active" : "archived";
+      if (newStatus !== getLeagueStatus(id)) {
+        const label = (allLeagues[id] && allLeagues[id].name) || id;
+        statusChanges.push(label + " → " + (newStatus === "active" ? "Active" : "Archived"));
+      }
       set(ref(db, "leagues/" + id + "/status"), newStatus);
       if (newStatus === "active") activeIds.push(id);
     });
+    if (statusChanges.length) {
+      logAdminAction("Updated league status: " + statusChanges.join(", "));
+    }
 
     // The operational pointer (Score Updates, Schedule, Teams, etc.) still
     // needs exactly one league. Keep it as-is if that league is still
@@ -6406,7 +6545,7 @@
     renderAll();
     renderHistoryList();
     renderActiveLeagueLabel();
-    renderStorageEstimate(data);
+    renderStorageEstimate();
     renderScheduleMatchList();
     renderPublicSchedule();
     renderLeaguesTab();
@@ -6429,6 +6568,13 @@
     removedTeams = snapshot.val() || {};
     renderTeamGrid();
     renderRosters();
+  });
+
+  onValue(ref(db, "logs"), (snapshot) => {
+    allLogs = snapshot.val() || {};
+    pruneLogsIfNeeded();
+    renderLogsList();
+    renderStorageEstimate();
   });
 
   renderAll();
